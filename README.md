@@ -170,7 +170,7 @@ devduel/
 ### 1. Clone the repository
 
 ```bash
-git clone https://github.com/vinayak-ck/devduel.git
+git clone https://github.com/vinayak-ck/DevDuel.git
 cd devduel
 ```
 
@@ -314,6 +314,7 @@ tag                — problem categories (DP, Graphs, etc.)
 
 ---
 
+<!--
 ## 🛣️ Roadmap
 
 - [x] Project setup and architecture
@@ -330,6 +331,7 @@ tag                — problem categories (DP, Graphs, etc.)
 - [ ] Nginx reverse proxy setup
 
 ---
+-->
 
 ## 🤝 Contributing
 
@@ -349,25 +351,20 @@ git push origin feature/your-feature-name
 **Vinayak C Kanavalli**
 
 [![GitHub](https://img.shields.io/badge/GitHub-vinayak--ck-181717?style=flat&logo=github)](https://github.com/vinayak-ck)
-[![LinkedIn](https://img.shields.io/badge/LinkedIn-Connect-0A66C2?style=flat&logo=linkedin)](https://linkedin.com/in/vinayak-ck)
+[![LinkedIn](https://img.shields.io/badge/LinkedIn-Connect-0A66C2?style=flat&logo=linkedin)](https://www.linkedin.com/in/vinayak-c-kanavalli-/)
 [![Portfolio](https://img.shields.io/badge/Portfolio-vinayak--ck.github.io-4F46E5?style=flat)](https://vinayak-ck.github.io/MyPortfolio/)
-[![LeetCode](https://img.shields.io/badge/LeetCode-220%2B_solved-FFA116?style=flat&logo=leetcode)](https://leetcode.com)
+[![LeetCode](https://img.shields.io/badge/LeetCode-220%2B_solved-FFA116?style=flat&logo=leetcode)](https://leetcode.com/u/vinayak_c_kanavalli/)
 
 ---
 
+<!--
 ## 📄 License
 
 MIT License — see [LICENSE](LICENSE) for details.
 
 ---
-
+-->
 <div align="center">
   <sub>Built with ❤️ by Vinayak — one battle at a time.</sub>
 </div>
-README
-echo "README.md created successfully"
-wc -l /home/claude/devduel/README.md
-Output
 
-README.md created successfully
-365 /home/claude/devduel/README.md
