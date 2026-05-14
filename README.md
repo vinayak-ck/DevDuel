@@ -11,7 +11,9 @@
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688?style=flat&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
 [![Redis](https://img.shields.io/badge/Redis-7.x-DC382D?style=flat&logo=redis&logoColor=white)](https://redis.io)
 [![WebSocket](https://img.shields.io/badge/WebSocket-Django_Channels-7F77DD?style=flat)](https://channels.readthedocs.io)
+<!--
 [![License](https://img.shields.io/badge/License-MIT-green?style=flat)](LICENSE)
+-->
 
 [Live Demo](#) · [Report Bug](issues) · [Request Feature](issues)
 
