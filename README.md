@@ -13,7 +13,7 @@
 [![WebSocket](https://img.shields.io/badge/WebSocket-Django_Channels-7F77DD?style=flat)](https://channels.readthedocs.io)
 [![License](https://img.shields.io/badge/License-MIT-green?style=flat)](LICENSE)
 
-[Live Demo](#) · [Report Bug](issues) · [Request Feature](issues)
+[Live Demo](#) · [Report Bug](https://github.com/vinayak-ck/DevDuel/issues) · [Request Feature](https://github.com/vinayak-ck/DevDuel/issues)
 
 </div>
 
