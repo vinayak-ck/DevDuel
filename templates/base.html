@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}DevDuel{% endblock %}</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: #0f0f1a;
+      color: #e2e2e8;
+      min-height: 100vh;
+    }
+
+    nav {
+      background: #1a1a2e;
+      border-bottom: 1px solid #2d2d44;
+      padding: 0 24px;
+      height: 52px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .nav-brand {
+      font-size: 20px;
+      font-weight: 700;
+      color: #7c6dfa;
+      text-decoration: none;
+      letter-spacing: -0.5px;
+    }
+
+    .nav-brand span { color: #e2e2e8; }
+
+    .nav-links { display: flex; gap: 8px; align-items: center; }
+
+    .nav-links a {
+      color: #a0a0b8;
+      text-decoration: none;
+      font-size: 14px;
+      padding: 6px 12px;
+      border-radius: 6px;
+      transition: all 0.15s;
+    }
+
+    .nav-links a:hover { background: #2d2d44; color: #e2e2e8; }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      border: none;
+      text-decoration: none;
+      transition: all 0.15s;
+    }
+
+    .btn-primary { background: #7c6dfa; color: #fff; }
+    .btn-primary:hover { background: #6c5de8; }
+    .btn-secondary { background: #2d2d44; color: #e2e2e8; }
+    .btn-secondary:hover { background: #3d3d58; }
+    .btn-danger { background: #e24b4a; color: #fff; }
+    .btn-success { background: #22c55e; color: #fff; }
+    .btn-success:hover { background: #16a34a; }
+
+    .container { max-width: 1200px; margin: 0 auto; padding: 24px; }
+
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 99px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+
+    .badge-easy   { background: #14532d; color: #4ade80; }
+    .badge-medium { background: #713f12; color: #fbbf24; }
+    .badge-hard   { background: #7f1d1d; color: #f87171; }
+
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: #2d2d44;
+      color: #e2e2e8;
+      padding: 12px 20px;
+      border-radius: 10px;
+      font-size: 14px;
+      border: 1px solid #3d3d58;
+      z-index: 9999;
+      opacity: 0;
+      transform: translateY(8px);
+      transition: all 0.2s;
+    }
+
+    .toast.show { opacity: 1; transform: translateY(0); }
+
+    {% block extra_style %}{% endblock %}
+  </style>
+</head>
+<body>
+
+<nav>
+  <a href="/" class="nav-brand">⚔️ Dev<span>Duel</span></a>
+  <div class="nav-links">
+    {% if user.is_authenticated %}
+      <a href="/">Lobby</a>
+      <a href="/admin/">Admin</a>
+      <span style="color:#a0a0b8;font-size:14px">{{ user.username }}</span>
+      <a href="/admin/logout/" class="btn btn-secondary" style="padding:5px 12px">Logout</a>
+    {% else %}
+      <a href="/admin/" class="btn btn-primary">Login</a>
+    {% endif %}
+  </div>
+</nav>
+
+<div id="toast" class="toast"></div>
+
+{% block content %}{% endblock %}
+
+<script>
+function showToast(msg, duration=3000) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), duration);
+}
+</script>
+
+{% block scripts %}{% endblock %}
+
+</body>
+</html>

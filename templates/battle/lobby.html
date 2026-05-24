@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+
+{% block title %}Lobby — DevDuel{% endblock %}
+
+{% block extra_style %}
+.lobby { max-width: 800px; margin: 40px auto; padding: 0 24px; }
+.lobby-header { margin-bottom: 32px; }
+.lobby-header h1 { font-size: 28px; font-weight: 700; margin-bottom: 8px; }
+.lobby-header p { color: #a0a0b8; font-size: 15px; }
+.actions { display: flex; gap: 12px; margin-bottom: 32px; }
+.rooms-title {
+  font-size: 13px; font-weight: 600; color: #a0a0b8;
+  text-transform: uppercase; letter-spacing: 0.08em;
+  margin-bottom: 12px;
+}
+.room-card {
+  background: #1a1a2e;
+  border: 1px solid #2d2d44;
+  border-radius: 12px;
+  padding: 16px 20px;
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  transition: border-color 0.15s;
+}
+.room-card:hover { border-color: #7c6dfa; }
+.room-info h3 { font-size: 15px; font-weight: 600; margin-bottom: 4px; }
+.room-meta { font-size: 13px; color: #a0a0b8; display: flex; gap: 12px; }
+.empty-state {
+  text-align: center; padding: 48px 24px;
+  color: #a0a0b8;
+  background: #1a1a2e;
+  border: 1px dashed #2d2d44;
+  border-radius: 12px;
+}
+.empty-state h3 { font-size: 18px; color: #e2e2e8; margin-bottom: 8px; }
+.error-banner {
+  background: #7f1d1d;
+  border: 1px solid #991b1b;
+  color: #fca5a5;
+  padding: 12px 16px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  font-size: 14px;
+}
+{% endblock %}
+
+{% block content %}
+<div class="lobby">
+  <div class="lobby-header">
+    <h1>⚔️ Battle Lobby</h1>
+    <p>Create a room or join an existing one. First to solve wins.</p>
+  </div>
+
+  {% if error %}
+    <div class="error-banner">⚠️ {{ error }}</div>
+  {% endif %}
+
+  <div class="actions">
+    <a href="/battle/create/" class="btn btn-primary">
+      + Create Battle Room
+    </a>
+  </div>
+
+  <div class="rooms-title">Open Rooms ({{ open_battles|length }})</div>
+
+  {% if open_battles %}
+    {% for battle in open_battles %}
+    <div class="room-card">
+      <div class="room-info">
+        <h3>
+          {{ battle.problem.title|default:"Mystery Problem" }}
+          {% if battle.problem %}
+            <span class="badge badge-{{ battle.problem.difficulty }}">
+              {{ battle.problem.get_difficulty_display }}
+            </span>
+          {% endif %}
+        </h3>
+        <div class="room-meta">
+          <span>🧑 {{ battle.player_a.username }}</span>
+          <span>⏱ {{ battle.time_limit_minutes }} min</span>
+          <span>🏠 {{ battle.room_id }}</span>
+        </div>
+      </div>
+      <a href="/battle/room/{{ battle.room_id }}/"
+         class="btn btn-primary">
+        Join Battle
+      </a>
+    </div>
+    {% endfor %}
+  {% else %}
+    <div class="empty-state">
+      <h3>No open rooms</h3>
+      <p>Create one and wait for an opponent to join!</p>
+    </div>
+  {% endif %}
+</div>
+{% endblock %}

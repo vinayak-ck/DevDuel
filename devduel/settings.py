@@ -4,13 +4,13 @@ from decouple import config
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# ── Security ──
 SECRET_KEY = config('SECRET_KEY')
 DEBUG = config('DEBUG', default=True, cast=bool)
 ALLOWED_HOSTS = ['*']
 
-# ── Apps ──
+# ── Apps — daphne MUST be first ──
 INSTALLED_APPS = [
+    'daphne',                                    # ← ADD THIS FIRST
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -19,6 +19,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     # third party
     'rest_framework',
+    'channels',                                  # ← ADD THIS
     # our apps
     'users',
     'problems',
@@ -53,9 +54,20 @@ TEMPLATES = [
     },
 ]
 
-WSGI_APPLICATION = 'devduel.wsgi.application'
+# ── ASGI — replaces WSGI_APPLICATION ──
+ASGI_APPLICATION = 'devduel.asgi.application'   # ← CHANGE THIS
 
-# ── Database — MySQL ──
+# ── Channel Layer — Memurai/Redis ──
+CHANNEL_LAYERS = {
+    'default': {
+        'BACKEND': 'channels_redis.core.RedisChannelLayer',
+        'CONFIG': {
+            'hosts': [('127.0.0.1', 6379)],
+        },
+    },
+}
+
+# ── Database ──
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
@@ -70,7 +82,6 @@ DATABASES = {
     }
 }
 
-# ── Password validation ──
 AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
     {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator'},
@@ -78,23 +89,19 @@ AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator'},
 ]
 
-# ── Localisation ──
 LANGUAGE_CODE = 'en-us'
 TIME_ZONE = 'Asia/Kolkata'
 USE_I18N = True
 USE_TZ = True
 
-# ── Static files ──
 STATIC_URL = '/static/'
 STATICFILES_DIRS = [BASE_DIR / 'frontend' / 'static']
 
-# ── Media files (avatars etc) ──
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-# ── Django REST Framework ──
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
         'rest_framework.authentication.SessionAuthentication',
