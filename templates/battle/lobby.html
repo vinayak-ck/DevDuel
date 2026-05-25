@@ -83,10 +83,11 @@
           <span>🏠 {{ battle.room_id }}</span>
         </div>
       </div>
-      <a href="/battle/room/{{ battle.room_id }}/"
-         class="btn btn-primary">
-        Join Battle
-      </a>
+      <!-- change this: -->
+        <a href="/battle/room/{{ battle.room_id }}/"
+          class="btn btn-primary">
+          Join Battle
+        </a>
     </div>
     {% endfor %}
   {% else %}

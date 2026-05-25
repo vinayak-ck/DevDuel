@@ -24,11 +24,12 @@ urlpatterns = [
 # devduel/urls.py
 from django.contrib import admin
 from django.urls import path, include
+from django.shortcuts import redirect
 from django.conf import settings
 from django.conf.urls.static import static
 
 urlpatterns = [
-    path('admin/',   admin.site.urls),
-    path('battle/',  include('battle.urls')),
-    path('',         include('battle.urls')),   # lobby at root
+    path('admin/', admin.site.urls),
+    path('battle/', include('battle.urls')),
+    path('', lambda request, *args, **kwargs: redirect('/battle/'), name='home'),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
