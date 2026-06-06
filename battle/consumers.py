@@ -263,13 +263,79 @@ class BattleConsumer(AsyncWebsocketConsumer):
     # ─────────────────────────────────────────────
 
     async def run_judge(self, code, language, battle):
-        """
-        Sprint 2: placeholder judge — always returns AC.
-        Sprint 3: calls FastAPI judge microservice.
-        """
+    """
+    1. Fetches test cases from DB (on Django/Windows side)
+    2. Sends them to the stateless FastAPI judge
+    3. Returns verdict dict
+    """
+    import aiohttp
+
+    # get test cases from DB — this runs on Django's side
+    test_cases = await self.get_test_cases(battle)
+
+    if not test_cases:
         return {
-            'verdict': 'AC',
-            'time_ms': 42.0,
+            'verdict': 'RE',
+            'time_ms': 0,
+            'passed':  0,
+            'total':   0,
+            'stderr':  'No test cases found for this problem.',
+        }
+
+    judge_url = 'http://127.0.0.1:8001/execute'
+
+    payload = {
+        'code':            code,
+        'language':        language,
+        'test_cases':      test_cases,   # pass them in the request
+        'time_limit':      battle.problem.time_limit_seconds if battle.problem else 5.0,
+        'memory_limit_mb': battle.problem.memory_limit_mb   if battle.problem else 256,
+    }
+
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.post(
+                judge_url,
+                json=payload,
+                timeout=aiohttp.ClientTimeout(total=120),
+            ) as response:
+                if response.status == 200:
+                    data = await response.json()
+                    return {
+                        'verdict':      data['verdict'],
+                        'time_ms':      data['time_ms'],
+                        'passed':       data['tests_passed'],
+                        'total':        data['tests_total'],
+                        'stderr':       data.get('stderr', ''),
+                        'test_results': data.get('test_results', []),
+                    }
+                else:
+                    error = await response.text()
+                    return {
+                        'verdict': 'RE',
+                        'time_ms': 0,
+                        'passed':  0,
+                        'total':   0,
+                        'stderr':  f'Judge error {response.status}: {error}',
+                    }
+
+    except aiohttp.ClientConnectorError:
+        print("[Consumer] Judge service not reachable at port 8001")
+        return {
+            'verdict': 'RE',
+            'time_ms': 0,
+            'passed':  0,
+            'total':   0,
+            'stderr':  'Judge service not running. Start uvicorn on port 8001.',
+        }
+
+    except Exception as e:
+        return {
+            'verdict': 'RE',
+            'time_ms': 0,
+            'passed':  0,
+            'total':   0,
+            'stderr':  f'Judge error: {str(e)}',
         }
 
     # ─────────────────────────────────────────────
@@ -356,3 +422,24 @@ class BattleConsumer(AsyncWebsocketConsumer):
         battle.status      = 'finished'
         battle.finished_at = timezone.now()
         battle.save()
+
+    @database_sync_to_async
+    def get_test_cases(self, battle):
+        """
+        Reads test cases from DB and returns them as plain dicts.
+        This runs in Django's thread pool (not the async event loop).
+        """
+        from problems.models import TestCase
+
+        if not battle.problem:
+            return []
+
+        cases = TestCase.objects.filter(
+            problem=battle.problem,
+            is_active=True,
+        ).order_by('order')
+
+        return [
+            {'input': tc.input_data, 'output': tc.expected_output}
+            for tc in cases
+        ]
