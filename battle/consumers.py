@@ -287,7 +287,7 @@ class BattleConsumer(AsyncWebsocketConsumer):
             }
 
 
-        judge_url = 'http://10.191.74.180:8001/execute'
+        judge_url = 'http://127.0.0.1:8001/execute'
 
         payload = {
             'code':            code,
