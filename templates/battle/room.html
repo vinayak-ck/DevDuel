@@ -209,12 +209,35 @@ select {
 </div>
 {% endif %}
 
+<!-- Submission results panel -->
+<div id="resultsPanel" style="display:none;position:fixed;bottom:60px;right:16px;
+     width:320px;background:#1a1a2e;border:1px solid #2d2d44;border-radius:12px;
+     z-index:150;overflow:hidden;box-shadow:0 8px 32px rgba(0,0,0,0.4)">
+  <div style="padding:10px 14px;border-bottom:1px solid #2d2d44;
+              display:flex;justify-content:space-between;align-items:center">
+    <span style="font-size:13px;font-weight:600">Submission Result</span>
+    <button onclick="document.getElementById('resultsPanel').style.display='none'"
+            style="background:none;border:none;color:#a0a0b8;cursor:pointer;font-size:16px">✕</button>
+  </div>
+  <div style="padding:12px 14px">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+      <span id="rpVerdict" style="font-size:20px;font-weight:700"></span>
+      <span id="rpTime"    style="font-size:12px;color:#a0a0b8"></span>
+    </div>
+    <div id="rpTests" style="font-size:12px;color:#a0a0b8;margin-bottom:8px"></div>
+    <div id="rpStderr" style="display:none;background:#0f0f1a;border-radius:6px;
+         padding:8px;font-family:monospace;font-size:11px;color:#f87171;
+         max-height:80px;overflow-y:auto;white-space:pre-wrap"></div>
+  </div>
+</div>
+
 <!-- Battle over modal -->
 <div class="battle-over-modal" id="battleOverModal">
   <div class="modal-box">
     <h2 id="modalTitle">⚔️ Battle Over!</h2>
     <p id="modalDesc">Loading...</p>
-    <a href="/" class="btn btn-primary">Back to Lobby</a>
+    <div id="modalRatingChange" style="margin:12px 0;font-size:14px;color:#a0a0b8"></div>
+    <a href="/battle/" class="btn btn-primary">Back to Lobby</a>
   </div>
 </div>
 
@@ -473,27 +496,69 @@ function onProgressUpdate(data) {
 }
 
 function onVerdictEvent(data) {
-  const isMe = data.player === CURRENT_USER;
-  const isPlayerA = data.player === '{{ battle.player_a.username }}';
-  const badgeEl = document.getElementById(isPlayerA ? 'verdictA' : 'verdictB');
+    if (data.verdict === 'JUDGING') return;
 
-  if (badgeEl) {
-    badgeEl.className = `verdict-badge verdict-${data.verdict}`;
-    badgeEl.textContent = data.verdict;
-  }
+    const isMe      = data.player === CURRENT_USER;
+    const isPlayerA = data.player === '{{ battle.player_a.username }}';
+    const badgeEl   = document.getElementById(isPlayerA ? 'verdictA' : 'verdictB');
 
-  if (isMe) {
-    const statusEl = document.getElementById('submissionStatus');
-    if (statusEl) statusEl.textContent = `Verdict: ${data.verdict}`;
-    document.getElementById('btnSubmit').disabled = false;
-    document.getElementById('btnSubmit').textContent = 'Submit (Ctrl+Enter)';
-
-    if (data.verdict === 'AC') {
-      showToast('🎉 Accepted! You solved it!', 5000);
-    } else if (data.verdict !== 'JUDGING') {
-      showToast(`❌ ${data.verdict} — try again`, 4000);
+    // update verdict badge in players bar
+    if (badgeEl) {
+        badgeEl.className   = `verdict-badge verdict-${data.verdict}`;
+        badgeEl.textContent = data.verdict;
     }
-  }
+
+    // show detailed results panel only for the player who submitted
+    if (isMe) {
+        document.getElementById('btnSubmit').disabled    = false;
+        document.getElementById('btnSubmit').textContent = 'Submit (Ctrl+Enter)';
+        document.getElementById('submissionStatus').textContent = '';
+
+        showResultsPanel(data);
+
+        if (data.verdict === 'AC') {
+            showToast('🎉 Accepted! You solved it!', 5000);
+        } else {
+            showToast(`❌ ${data.verdict} — check the results panel`, 4000);
+        }
+    }
+}
+
+function showResultsPanel(data) {
+    const panel   = document.getElementById('resultsPanel');
+    const verdict = data.verdict;
+
+    // verdict with color
+    const colors = {
+        AC:  '#4ade80', WA: '#f87171',
+        TLE: '#fbbf24', RE: '#c4b5fd', CE: '#93c5fd'
+    };
+    const rpVerdict = document.getElementById('rpVerdict');
+    rpVerdict.textContent = verdict;
+    rpVerdict.style.color = colors[verdict] || '#e2e2e8';
+
+    // time
+    const rpTime = document.getElementById('rpTime');
+    rpTime.textContent = data.time_ms ? `${data.time_ms.toFixed(1)}ms` : '';
+
+    // test cases passed
+    const rpTests = document.getElementById('rpTests');
+    if (data.tests_total > 0) {
+        rpTests.textContent = `${data.tests_passed}/${data.tests_total} test cases passed`;
+    } else {
+        rpTests.textContent = '';
+    }
+
+    // stderr for RE/CE
+    const rpStderr = document.getElementById('rpStderr');
+    if (data.stderr && (verdict === 'RE' || verdict === 'CE' || verdict === 'WA')) {
+        rpStderr.style.display = 'block';
+        rpStderr.textContent   = data.stderr.substring(0, 500);
+    } else {
+        rpStderr.style.display = 'none';
+    }
+
+    panel.style.display = 'block';
 }
 
 function onBattleOver(data) {
