@@ -286,6 +286,7 @@ class BattleConsumer(AsyncWebsocketConsumer):
                 'stderr':  'No test cases found for this problem.',
             }
 
+
         judge_url = 'http://10.191.74.180:8001/execute'
 
         payload = {
