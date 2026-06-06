@@ -210,13 +210,17 @@ class BattleConsumer(AsyncWebsocketConsumer):
             language=language,
         )
 
-        # tell both players a submission is being judged
+        # inside handle_submit — update the final group_send call
         await self.channel_layer.group_send(
             self.room_group,
             {
                 'type':          'verdict_event',
                 'player':        self.user.username,
-                'verdict':       'JUDGING',
+                'verdict':       verdict['verdict'],
+                'time_ms':       verdict.get('time_ms'),
+                'tests_passed':  verdict.get('passed', 0),
+                'tests_total':   verdict.get('total', 0),
+                'stderr':        verdict.get('stderr', ''),
                 'submission_id': submission.id,
             }
         )
@@ -263,183 +267,183 @@ class BattleConsumer(AsyncWebsocketConsumer):
     # ─────────────────────────────────────────────
 
     async def run_judge(self, code, language, battle):
-    """
-    1. Fetches test cases from DB (on Django/Windows side)
-    2. Sends them to the stateless FastAPI judge
-    3. Returns verdict dict
-    """
-    import aiohttp
+        """
+        1. Fetches test cases from DB (on Django/Windows side)
+        2. Sends them to the stateless FastAPI judge
+        3. Returns verdict dict
+        """
+        import aiohttp
 
-    # get test cases from DB — this runs on Django's side
-    test_cases = await self.get_test_cases(battle)
+        # get test cases from DB — this runs on Django's side
+        test_cases = await self.get_test_cases(battle)
 
-    if not test_cases:
-        return {
-            'verdict': 'RE',
-            'time_ms': 0,
-            'passed':  0,
-            'total':   0,
-            'stderr':  'No test cases found for this problem.',
-        }
-
-    judge_url = 'http://127.0.0.1:8001/execute'
-
-    payload = {
-        'code':            code,
-        'language':        language,
-        'test_cases':      test_cases,   # pass them in the request
-        'time_limit':      battle.problem.time_limit_seconds if battle.problem else 5.0,
-        'memory_limit_mb': battle.problem.memory_limit_mb   if battle.problem else 256,
-    }
-
-    try:
-        async with aiohttp.ClientSession() as session:
-            async with session.post(
-                judge_url,
-                json=payload,
-                timeout=aiohttp.ClientTimeout(total=120),
-            ) as response:
-                if response.status == 200:
-                    data = await response.json()
-                    return {
-                        'verdict':      data['verdict'],
-                        'time_ms':      data['time_ms'],
-                        'passed':       data['tests_passed'],
-                        'total':        data['tests_total'],
-                        'stderr':       data.get('stderr', ''),
-                        'test_results': data.get('test_results', []),
-                    }
-                else:
-                    error = await response.text()
-                    return {
-                        'verdict': 'RE',
-                        'time_ms': 0,
-                        'passed':  0,
-                        'total':   0,
-                        'stderr':  f'Judge error {response.status}: {error}',
-                    }
-
-    except aiohttp.ClientConnectorError:
-        print("[Consumer] Judge service not reachable at port 8001")
-        return {
-            'verdict': 'RE',
-            'time_ms': 0,
-            'passed':  0,
-            'total':   0,
-            'stderr':  'Judge service not running. Start uvicorn on port 8001.',
-        }
-
-    except Exception as e:
-        return {
-            'verdict': 'RE',
-            'time_ms': 0,
-            'passed':  0,
-            'total':   0,
-            'stderr':  f'Judge error: {str(e)}',
-        }
-
-    # ─────────────────────────────────────────────
-    # BATTLE LIFECYCLE
-    # ─────────────────────────────────────────────
-
-    async def end_battle(self, battle, winner):
-        """Mark battle finished and broadcast result."""
-        await self.mark_battle_finished(battle, winner)
-
-        await self.channel_layer.group_send(
-            self.room_group,
-            {
-                'type':   'battle_over',
-                'winner': winner.username,
-                'loser':  (
-                    battle.player_b.username
-                    if winner == battle.player_a
-                    else battle.player_a.username
-                ) if battle.player_a and battle.player_b else None,
+        if not test_cases:
+            return {
+                'verdict': 'RE',
+                'time_ms': 0,
+                'passed':  0,
+                'total':   0,
+                'stderr':  'No test cases found for this problem.',
             }
-        )
 
-    # ─────────────────────────────────────────────
-    # HELPER — send JSON cleanly
-    # ─────────────────────────────────────────────
+        judge_url = 'http://127.0.0.1:8001/execute'
 
-    async def send_json(self, data):
-        await self.send(text_data=json.dumps(data))
+        payload = {
+            'code':            code,
+            'language':        language,
+            'test_cases':      test_cases,   # pass them in the request
+            'time_limit':      battle.problem.time_limit_seconds if battle.problem else 5.0,
+            'memory_limit_mb': battle.problem.memory_limit_mb   if battle.problem else 256,
+        }
 
-    # ─────────────────────────────────────────────
-    # DATABASE HELPERS — all sync wrapped with decorator
-    # ─────────────────────────────────────────────
-
-    @database_sync_to_async
-    def get_battle(self):
-        from .models import Battle
         try:
-            return Battle.objects.select_related(
-                'player_a', 'player_b', 'problem', 'winner'
-            ).get(room_id=self.room_id)
-        except Battle.DoesNotExist:
+            async with aiohttp.ClientSession() as session:
+                async with session.post(
+                    judge_url,
+                    json=payload,
+                    timeout=aiohttp.ClientTimeout(total=120),
+                ) as response:
+                    if response.status == 200:
+                        data = await response.json()
+                        return {
+                            'verdict':      data['verdict'],
+                            'time_ms':      data['time_ms'],
+                            'passed':       data['tests_passed'],
+                            'total':        data['tests_total'],
+                            'stderr':       data.get('stderr', ''),
+                            'test_results': data.get('test_results', []),
+                        }
+                    else:
+                        error = await response.text()
+                        return {
+                            'verdict': 'RE',
+                            'time_ms': 0,
+                            'passed':  0,
+                            'total':   0,
+                            'stderr':  f'Judge error {response.status}: {error}',
+                        }
+
+        except aiohttp.ClientConnectorError:
+            print("[Consumer] Judge service not reachable at port 8001")
+            return {
+                'verdict': 'RE',
+                'time_ms': 0,
+                'passed':  0,
+                'total':   0,
+                'stderr':  'Judge service not running. Start uvicorn on port 8001.',
+            }
+
+        except Exception as e:
+            return {
+                'verdict': 'RE',
+                'time_ms': 0,
+                'passed':  0,
+                'total':   0,
+                'stderr':  f'Judge error: {str(e)}',
+            }
+
+        # ─────────────────────────────────────────────
+        # BATTLE LIFECYCLE
+        # ─────────────────────────────────────────────
+
+        async def end_battle(self, battle, winner):
+            """Mark battle finished and broadcast result."""
+            await self.mark_battle_finished(battle, winner)
+
+            await self.channel_layer.group_send(
+                self.room_group,
+                {
+                    'type':   'battle_over',
+                    'winner': winner.username,
+                    'loser':  (
+                        battle.player_b.username
+                        if winner == battle.player_a
+                        else battle.player_a.username
+                    ) if battle.player_a and battle.player_b else None,
+                }
+            )
+
+        # ─────────────────────────────────────────────
+        # HELPER — send JSON cleanly
+        # ─────────────────────────────────────────────
+
+        async def send_json(self, data):
+            await self.send(text_data=json.dumps(data))
+
+        # ─────────────────────────────────────────────
+        # DATABASE HELPERS — all sync wrapped with decorator
+        # ─────────────────────────────────────────────
+
+        @database_sync_to_async
+        def get_battle(self):
+            from .models import Battle
+            try:
+                return Battle.objects.select_related(
+                    'player_a', 'player_b', 'problem', 'winner'
+                ).get(room_id=self.room_id)
+            except Battle.DoesNotExist:
+                return None
+
+        @database_sync_to_async
+        def get_problem_title(self, battle):
+            if battle.problem:
+                return battle.problem.title
             return None
 
-    @database_sync_to_async
-    def get_problem_title(self, battle):
-        if battle.problem:
-            return battle.problem.title
-        return None
+        @database_sync_to_async
+        def set_player_b_and_start(self, battle):
+            battle.player_b  = self.user
+            battle.status    = 'active'
+            battle.started_at = timezone.now()
+            battle.save()
+            return battle
 
-    @database_sync_to_async
-    def set_player_b_and_start(self, battle):
-        battle.player_b  = self.user
-        battle.status    = 'active'
-        battle.started_at = timezone.now()
-        battle.save()
-        return battle
+        @database_sync_to_async
+        def save_submission(self, battle, code, language):
+            from .models import Submission
+            from problems.models import TestCase
+            total = TestCase.objects.filter(
+                problem=battle.problem, is_active=True
+            ).count()
+            return Submission.objects.create(
+                battle=battle,
+                player=self.user,
+                code=code,
+                language=language,
+                total_test_cases=total,
+            )
 
-    @database_sync_to_async
-    def save_submission(self, battle, code, language):
-        from .models import Submission
-        from problems.models import TestCase
-        total = TestCase.objects.filter(
-            problem=battle.problem, is_active=True
-        ).count()
-        return Submission.objects.create(
-            battle=battle,
-            player=self.user,
-            code=code,
-            language=language,
-            total_test_cases=total,
-        )
+        @database_sync_to_async
+        def update_submission_verdict(self, submission, verdict_data):
+            submission.verdict          = verdict_data['verdict']
+            submission.time_ms          = verdict_data.get('time_ms')
+            submission.test_cases_passed = verdict_data.get('passed', 0)
+            submission.save()
 
-    @database_sync_to_async
-    def update_submission_verdict(self, submission, verdict_data):
-        submission.verdict          = verdict_data['verdict']
-        submission.time_ms          = verdict_data.get('time_ms')
-        submission.test_cases_passed = verdict_data.get('passed', 0)
-        submission.save()
+        @database_sync_to_async
+        def mark_battle_finished(self, battle, winner):
+            battle.winner      = winner
+            battle.status      = 'finished'
+            battle.finished_at = timezone.now()
+            battle.save()
 
-    @database_sync_to_async
-    def mark_battle_finished(self, battle, winner):
-        battle.winner      = winner
-        battle.status      = 'finished'
-        battle.finished_at = timezone.now()
-        battle.save()
+        @database_sync_to_async
+        def get_test_cases(self, battle):
+            """
+            Reads test cases from DB and returns them as plain dicts.
+            This runs in Django's thread pool (not the async event loop).
+            """
+            from problems.models import TestCase
 
-    @database_sync_to_async
-    def get_test_cases(self, battle):
-        """
-        Reads test cases from DB and returns them as plain dicts.
-        This runs in Django's thread pool (not the async event loop).
-        """
-        from problems.models import TestCase
+            if not battle.problem:
+                return []
 
-        if not battle.problem:
-            return []
+            cases = TestCase.objects.filter(
+                problem=battle.problem,
+                is_active=True,
+            ).order_by('order')
 
-        cases = TestCase.objects.filter(
-            problem=battle.problem,
-            is_active=True,
-        ).order_by('order')
-
-        return [
-            {'input': tc.input_data, 'output': tc.expected_output}
-            for tc in cases
-        ]
+            return [
+                {'input': tc.input_data, 'output': tc.expected_output}
+                for tc in cases
+            ]
