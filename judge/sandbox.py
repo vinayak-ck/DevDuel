@@ -174,6 +174,9 @@ def run_code_sync(
                     'expected': expected_output}
 
         # ── execute ──
+        # normalize line endings — fixes Windows \r\n issue
+        stdin_data = stdin_data.replace('\r\n', '\n').replace('\r', '\n').strip()
+        
         start = time.perf_counter()
         try:
             # preexec_fn only works on Unix — on Windows it's None

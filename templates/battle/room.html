@@ -553,7 +553,7 @@ function showResultsPanel(data) {
     const rpStderr = document.getElementById('rpStderr');
     if (data.stderr && (verdict === 'RE' || verdict === 'CE' || verdict === 'WA')) {
         rpStderr.style.display = 'block';
-        rpStderr.textContent   = data.stderr.substring(0, 500);
+        rpStderr.textContent   = data.stderr.substring(0, 2000);
     } else {
         rpStderr.style.display = 'none';
     }
