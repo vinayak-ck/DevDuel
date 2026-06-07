@@ -5,6 +5,8 @@ from channels.generic.websocket import AsyncWebsocketConsumer
 from channels.db import database_sync_to_async
 from django.utils import timezone
 
+import battle
+
 
 class BattleConsumer(AsyncWebsocketConsumer):
 
@@ -216,19 +218,17 @@ class BattleConsumer(AsyncWebsocketConsumer):
 
     async def run_judge(self, code, language, battle):
         import aiohttp
+        from django.conf import settings          
 
         test_cases = await self.get_test_cases(battle)
 
         if not test_cases:
             return {
-                'verdict': 'RE',
-                'time_ms': 0,
-                'passed':  0,
-                'total':   0,
-                'stderr':  'No test cases found for this problem.',
+                'verdict': 'RE', 'time_ms': 0, 'passed': 0,
+                'total': 0, 'stderr': 'No test cases found for this problem.',
             }
 
-        judge_url = 'http://127.0.0.1:8001/execute'
+        judge_url = f"{settings.JUDGE_URL}/execute"   
 
         payload = {
             'code':            code,

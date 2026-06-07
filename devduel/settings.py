@@ -1,26 +1,27 @@
 # devduel/settings.py
+import os
 from pathlib import Path
-from decouple import config
+from decouple import config, Csv
+import dj_database_url
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-SECRET_KEY = config('SECRET_KEY')
-DEBUG = config('DEBUG', default=True, cast=bool)
-ALLOWED_HOSTS = ['*']
+# ── Security ──
+SECRET_KEY   = config('SECRET_KEY')
+DEBUG        = config('DEBUG', default=False, cast=bool)
+ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='127.0.0.1,localhost', cast=Csv())
 
-# ── Apps — daphne MUST be first ──
+# ── Apps ──
 INSTALLED_APPS = [
-    'daphne',                                    # ← ADD THIS FIRST
+    'daphne',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    # third party
     'rest_framework',
-    'channels',                                  # ← ADD THIS
-    # our apps
+    'channels',
     'users',
     'problems',
     'battle',
@@ -28,6 +29,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',   # ← serve static files
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -54,33 +56,59 @@ TEMPLATES = [
     },
 ]
 
-# ── ASGI — replaces WSGI_APPLICATION ──
-ASGI_APPLICATION = 'devduel.asgi.application'   # ← CHANGE THIS
+# ── ASGI ──
+ASGI_APPLICATION = 'devduel.asgi.application'
 
-# ── Channel Layer — Memurai/Redis ──
+# ── Database ──
+# Railway provides DATABASE_URL — dj_database_url parses it
+# Locally we still use .env individual variables
+DATABASE_URL = config('DATABASE_URL', default=None)
+
+if DATABASE_URL:
+    # production — Railway MySQL URL
+    DATABASES = {
+        'default': dj_database_url.parse(
+            DATABASE_URL,
+            engine='django.db.backends.mysql',
+            conn_max_age=600,
+        )
+    }
+    DATABASES['default']['OPTIONS'] = {'charset': 'utf8mb4'}
+else:
+    # local development — individual env vars
+    DATABASES = {
+        'default': {
+            'ENGINE':   'django.db.backends.mysql',
+            'NAME':     config('DB_NAME'),
+            'USER':     config('DB_USER'),
+            'PASSWORD': config('DB_PASSWORD'),
+            'HOST':     config('DB_HOST', default='localhost'),
+            'PORT':     config('DB_PORT', default='3306'),
+            'OPTIONS':  {'charset': 'utf8mb4'},
+        }
+    }
+
+# ── Channel Layer ──
+# Railway provides REDIS_URL — use it if available
+REDIS_URL = config('REDIS_URL', default='redis://127.0.0.1:6379')
+
 CHANNEL_LAYERS = {
     'default': {
         'BACKEND': 'channels_redis.core.RedisChannelLayer',
         'CONFIG': {
-            'hosts': [('127.0.0.1', 6379)],
+            'hosts': [REDIS_URL],
         },
     },
 }
 
-# ── Database ──
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.mysql',
-        'NAME':     config('DB_NAME'),
-        'USER':     config('DB_USER'),
-        'PASSWORD': config('DB_PASSWORD'),
-        'HOST':     config('DB_HOST', default='localhost'),
-        'PORT':     config('DB_PORT', default='3306'),
-        'OPTIONS': {
-            'charset': 'utf8mb4',
-        },
-    }
-}
+# ── Judge URL ──
+# In production: the Railway URL of the FastAPI judge service
+# Locally: http://127.0.0.1:8001
+JUDGE_URL = config('JUDGE_URL', default='http://127.0.0.1:8001')
+
+# ── Auth ──
+LOGIN_URL          = '/auth/login/'
+LOGIN_REDIRECT_URL = '/battle/'
 
 AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
@@ -89,17 +117,20 @@ AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator'},
 ]
 
+# ── Localisation ──
 LANGUAGE_CODE = 'en-us'
-TIME_ZONE = 'Asia/Kolkata'
-USE_I18N = True
-USE_TZ = True
+TIME_ZONE     = 'Asia/Kolkata'
+USE_I18N      = True
+USE_TZ        = True
 
-LOGIN_URL = '/auth/login/'
-
-STATIC_URL = '/static/'
+# ── Static files ──
+STATIC_URL  = '/static/'
+STATIC_ROOT = BASE_DIR / 'staticfiles'    # collectstatic dumps here
 STATICFILES_DIRS = [BASE_DIR / 'frontend' / 'static']
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
-MEDIA_URL = '/media/'
+# ── Media ──
+MEDIA_URL  = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
