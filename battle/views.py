@@ -1,9 +1,10 @@
 # battle/views.py
 import random
+import redis as redis_client
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
-from .models import Battle
+from .models import Battle, Submission, RatingHistory
 from problems.models import Problem
 
 
