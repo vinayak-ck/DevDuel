@@ -107,16 +107,27 @@
 <body>
 
 <nav>
-  <a href="/" class="nav-brand">⚔️ Dev<span>Duel</span></a>
+  <a href="/battle/" class="nav-brand">⚔️ Dev<span>Duel</span></a>
   <div class="nav-links">
     {% if user.is_authenticated %}
       <a href="/battle/">Lobby</a>
       <a href="/battle/leaderboard/">Leaderboard</a>
-      <a href="/battle/profile/">{{ user.username }}</a>
-      <a href="/admin/">Admin</a>
-      <a href="/admin/logout/" class="btn btn-secondary" style="padding:5px 12px">Logout</a>
+      <a href="/battle/profile/" class="nav-profile">
+        {{ user.username }}
+        {% if user.profile.is_provisional %}
+          <span style="color:#fbbf24;font-size:10px">?</span>
+        {% endif %}
+        <span style="color:#7c6dfa;font-family:monospace;font-size:12px;margin-left:4px">
+          {{ user.profile.elo_rating }}
+        </span>
+      </a>
+      <a href="/auth/logout/" class="btn btn-secondary"
+         style="padding:5px 12px;font-size:13px">Logout</a>
     {% else %}
-      <a href="/admin/login/" class="btn btn-primary">Login</a>
+      <a href="/auth/login/"    class="btn btn-secondary"
+         style="padding:5px 12px;font-size:13px">Login</a>
+      <a href="/auth/register/" class="btn btn-primary"
+         style="padding:5px 12px;font-size:13px">Register</a>
     {% endif %}
   </div>
 </nav>

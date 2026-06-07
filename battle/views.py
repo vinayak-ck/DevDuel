@@ -1,4 +1,5 @@
 # battle/views.py
+from pyexpat.errors import messages
 import random
 import redis as redis_client
 from django.shortcuts import render, redirect, get_object_or_404
@@ -199,3 +200,65 @@ def profile(request, username=None):
         'chart_data':  chart_data,
         'is_own':      target_user == request.user,
     })
+
+@login_required
+def find_opponent(request):
+    """
+    Smart matchmaking:
+    1. Look for a waiting room where opponent has similar ELO (±300)
+    2. If found → join that room
+    3. If not found → create a new room and wait
+    """
+    from users.models import UserProfile
+    from django.utils import timezone
+    from datetime import timedelta
+
+    # first: clean up rooms older than 10 minutes that are still waiting
+    stale_time = timezone.now() - timedelta(minutes=10)
+    Battle.objects.filter(
+        status='waiting',
+        created_at__lt=stale_time
+    ).update(status='abandoned')
+
+    # get this player's rating
+    profile, _ = UserProfile.objects.get_or_create(user=request.user)
+    my_rating  = profile.elo_rating
+    margin     = 300  # ±300 ELO is a fair match
+
+    # find a waiting room — not created by me, within rating range
+    waiting = Battle.objects.filter(
+        status='waiting'
+    ).exclude(
+        player_a=request.user
+    ).select_related('player_a', 'player_a__profile').order_by('-created_at')
+
+    # filter by rating proximity
+    best_match = None
+    for battle in waiting:
+        if battle.player_a and hasattr(battle.player_a, 'profile'):
+            diff = abs(battle.player_a.profile.elo_rating - my_rating)
+            if diff <= margin:
+                best_match = battle
+                break
+
+    # if no close match, take any waiting room
+    if not best_match and waiting.exists():
+        best_match = waiting.first()
+
+    if best_match:
+        # join this room
+        return redirect('battle_room', room_id=best_match.room_id)
+
+    # no waiting room — create a new one
+    problems = Problem.objects.filter(is_active=True)
+    if not problems.exists():
+        messages.error(request, 'No active problems available. Ask admin to add some.')
+        return redirect('lobby')
+
+    problem = random.choice(list(problems))
+    battle  = Battle.objects.create(
+        player_a=request.user,
+        problem=problem,
+        status='waiting',
+    )
+    return redirect('battle_room', room_id=battle.room_id)
