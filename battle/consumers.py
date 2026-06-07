@@ -280,8 +280,16 @@ class BattleConsumer(AsyncWebsocketConsumer):
     # ─────────────────────────────────────────────
 
     async def end_battle(self, battle, winner):
+        """Mark battle finished, calculate ELO, broadcast results."""
+        from .services import process_battle_result
+
+        # mark finished in DB
         await self.mark_battle_finished(battle, winner)
 
+        # calculate and save ELO ratings
+        rating_data = await process_battle_result(battle.id, winner.username)
+
+        # figure out loser username
         loser_username = None
         if battle.player_a and battle.player_b:
             loser_username = (
@@ -290,12 +298,14 @@ class BattleConsumer(AsyncWebsocketConsumer):
                 else battle.player_a.username
             )
 
+        # broadcast battle over with rating changes
         await self.channel_layer.group_send(
             self.room_group,
             {
-                'type':   'battle_over',
-                'winner': winner.username,
-                'loser':  loser_username,
+                'type':          'battle_over',
+                'winner':        winner.username,
+                'loser':         loser_username,
+                'rating_changes': rating_data,
             }
         )
 

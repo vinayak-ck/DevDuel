@@ -92,3 +92,109 @@ def battle_status_api(request, room_id):
         'player_a': battle.player_a.username if battle.player_a else None,
         'player_b': battle.player_b.username if battle.player_b else None,
     })
+
+import redis as redis_client
+
+def leaderboard(request):
+    """
+    Top 50 players from Redis Sorted Set.
+    Falls back to MySQL if Redis is empty.
+    """
+    from users.models import UserProfile
+
+    players = []
+
+    try:
+        r = redis_client.Redis(host='127.0.0.1', port=6379, decode_responses=True)
+        # ZRANGE with REV=True → highest rating first
+        entries = r.zrange('devduel:leaderboard', 0, 49, rev=True, withscores=True)
+
+        if entries:
+            for rank, (username, score) in enumerate(entries, start=1):
+                try:
+                    from django.contrib.auth.models import User
+                    user    = User.objects.get(username=username)
+                    profile = UserProfile.objects.get(user=user)
+                    players.append({
+                        'rank':           rank,
+                        'username':       username,
+                        'rating':         int(score),
+                        'wins':           profile.wins,
+                        'losses':         profile.losses,
+                        'battles_played': profile.battles_played,
+                        'win_rate':       profile.win_rate,
+                        'is_provisional': profile.is_provisional,
+                    })
+                except Exception:
+                    players.append({
+                        'rank': rank, 'username': username,
+                        'rating': int(score), 'wins': 0,
+                        'losses': 0, 'battles_played': 0,
+                        'win_rate': 0, 'is_provisional': False,
+                    })
+    except Exception as e:
+        print(f"[Leaderboard] Redis error: {e}")
+
+    # fallback to MySQL if Redis empty
+    if not players:
+        profiles = UserProfile.objects.select_related('user')\
+            .order_by('-elo_rating')[:50]
+        for rank, p in enumerate(profiles, start=1):
+            players.append({
+                'rank':           rank,
+                'username':       p.user.username,
+                'rating':         p.elo_rating,
+                'wins':           p.wins,
+                'losses':         p.losses,
+                'battles_played': p.battles_played,
+                'win_rate':       p.win_rate,
+                'is_provisional': p.is_provisional,
+            })
+
+    return render(request, 'battle/leaderboard.html', {
+        'players':      players,
+        'current_user': request.user.username if request.user.is_authenticated else None,
+    })
+
+
+@login_required
+def profile(request, username=None):
+    """User profile with rating history and battle stats."""
+    from django.contrib.auth.models import User
+    from users.models import UserProfile
+
+    if username:
+        target_user = get_object_or_404(User, username=username)
+    else:
+        target_user = request.user
+
+    profile, _ = UserProfile.objects.get_or_create(user=target_user)
+
+    # last 20 rating history entries
+    history = RatingHistory.objects.filter(
+        player=target_user
+    ).select_related('opponent', 'battle').order_by('-created_at')[:20]
+
+    # last 10 battles
+    from django.db.models import Q
+    battles = Battle.objects.filter(
+        Q(player_a=target_user) | Q(player_b=target_user)
+    ).select_related(
+        'player_a', 'player_b', 'problem', 'winner'
+    ).order_by('-created_at')[:10]
+
+    # rating chart data (chronological)
+    chart_data = list(
+        RatingHistory.objects.filter(player=target_user)
+        .order_by('created_at')
+        .values('rating_after', 'created_at', 'result')[:50]
+    )
+
+    return render(request, 'battle/profile.html', {
+        'profile':     profile,
+        'target_user': target_user,
+        'history':     history,
+        'battles':     battles,
+        'chart_data':  chart_data,
+        'is_own':      target_user == request.user,
+    })

@@ -562,19 +562,35 @@ function showResultsPanel(data) {
 }
 
 function onBattleOver(data) {
-  const modal     = document.getElementById('battleOverModal');
-  const titleEl   = document.getElementById('modalTitle');
-  const descEl    = document.getElementById('modalDesc');
-  const isWinner  = data.winner === CURRENT_USER;
+    const modal    = document.getElementById('battleOverModal');
+    const titleEl  = document.getElementById('modalTitle');
+    const descEl   = document.getElementById('modalDesc');
+    const ratingEl = document.getElementById('modalRatingChange');
+    const isWinner = data.winner === CURRENT_USER;
 
-  titleEl.textContent = isWinner ? '🏆 You Won!' : '💀 You Lost';
-  descEl.textContent  = isWinner
-    ? `You beat ${data.loser}! Great job.`
-    : `${data.winner} solved it first. Better luck next time!`;
+    titleEl.textContent = isWinner ? '🏆 You Won!' : '💀 You Lost';
+    descEl.textContent  = isWinner
+        ? `You beat ${data.loser}! Great solve.`
+        : `${data.winner} solved it first. Better luck next time!`;
 
-  modal.classList.add('show');
-  manuallyClosed = true;
-  if (ws) ws.close(1000);
+    // show rating change
+    if (data.rating_changes) {
+        const rc   = data.rating_changes;
+        const me   = CURRENT_USER === rc.player_a.username ? rc.player_a : rc.player_b;
+        const sign = me.change >= 0 ? '+' : '';
+        const col  = me.change >= 0 ? '#4ade80' : '#f87171';
+        ratingEl.innerHTML = `
+            <span style="color:${col};font-size:20px;font-weight:700">
+                ${sign}${me.change}
+            </span>
+            <span style="color:#a0a0b8;font-size:13px">
+                &nbsp; rating (${me.old_rating} → ${me.new_rating})
+            </span>`;
+    }
+
+    modal.classList.add('show');
+    manuallyClosed = true;
+    if (ws) ws.close(1000);
 }
 
 // ── submit ──

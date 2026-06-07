@@ -1,0 +1,196 @@
+{% extends "base.html" %}
+{% block title %}{{ target_user.username }} — DevDuel{% endblock %}
+
+{% block extra_style %}
+.profile-wrap{max-width:900px;margin:40px auto;padding:0 24px}
+.profile-header{
+  background:#1a1a2e;border:1px solid #2d2d44;border-radius:16px;
+  padding:28px;margin-bottom:20px;
+  display:grid;grid-template-columns:1fr auto;gap:20px;align-items:center
+}
+.profile-name{font-size:24px;font-weight:700;margin-bottom:6px}
+.profile-rating{
+  font-size:48px;font-weight:700;color:#7c6dfa;
+  font-family:monospace;text-align:right
+}
+.profile-rating-label{font-size:12px;color:#a0a0b8;text-align:right;margin-top:2px}
+.stats-grid{
+  display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px
+}
+.stat-card{
+  background:#1a1a2e;border:1px solid #2d2d44;border-radius:12px;
+  padding:16px;text-align:center
+}
+.stat-val{font-size:24px;font-weight:700;color:#e2e2e8;font-family:monospace}
+.stat-lbl{font-size:11px;color:#a0a0b8;margin-top:4px;text-transform:uppercase;letter-spacing:.05em}
+.section{margin-bottom:20px}
+.section h2{
+  font-size:14px;font-weight:600;color:#a0a0b8;
+  text-transform:uppercase;letter-spacing:.06em;
+  margin-bottom:10px
+}
+.history-item{
+  background:#1a1a2e;border:1px solid #2d2d44;border-radius:10px;
+  padding:12px 16px;margin-bottom:8px;
+  display:flex;align-items:center;gap:12px;font-size:13px
+}
+.result-win {color:#4ade80;font-weight:700;width:36px}
+.result-loss{color:#f87171;font-weight:700;width:36px}
+.change-pos{color:#4ade80;font-family:monospace;font-weight:600;margin-left:auto}
+.change-neg{color:#f87171;font-family:monospace;font-weight:600;margin-left:auto}
+canvas{width:100%!important}
+.chart-wrap{
+  background:#1a1a2e;border:1px solid #2d2d44;border-radius:12px;
+  padding:16px;margin-bottom:20px
+}
+.prov-badge{
+  display:inline-block;font-size:11px;padding:2px 8px;
+  border-radius:99px;background:#713f12;color:#fbbf24;margin-left:8px
+}
+{% endblock %}
+
+{% block content %}
+<div class="profile-wrap">
+
+  <!-- Header -->
+  <div class="profile-header">
+    <div>
+      <div class="profile-name">
+        {{ target_user.username }}
+        {% if profile.is_provisional %}
+          <span class="prov-badge">Provisional</span>
+        {% endif %}
+      </div>
+      <div style="color:#a0a0b8;font-size:13px">
+        Member since {{ target_user.date_joined|date:"M Y" }}
+      </div>
+      {% if is_own %}
+        <div style="margin-top:12px">
+          <a href="/battle/" class="btn btn-primary" style="font-size:13px">
+            ⚔️ Find Battle
+          </a>
+          <a href="/battle/leaderboard/" class="btn btn-secondary"
+             style="font-size:13px;margin-left:8px">
+            🏆 Leaderboard
+          </a>
+        </div>
+      {% endif %}
+    </div>
+    <div>
+      <div class="profile-rating">{{ profile.elo_rating }}</div>
+      <div class="profile-rating-label">ELO Rating</div>
+    </div>
+  </div>
+
+  <!-- Stats -->
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="stat-val" style="color:#4ade80">{{ profile.wins }}</div>
+      <div class="stat-lbl">Wins</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-val" style="color:#f87171">{{ profile.losses }}</div>
+      <div class="stat-lbl">Losses</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-val">{{ profile.win_rate }}%</div>
+      <div class="stat-lbl">Win Rate</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-val">{{ profile.battles_played }}</div>
+      <div class="stat-lbl">Battles</div>
+    </div>
+  </div>
+
+  <!-- Rating chart -->
+  {% if chart_data %}
+  <div class="chart-wrap">
+    <div class="section"><h2>Rating History</h2></div>
+    <canvas id="ratingChart" height="120"></canvas>
+  </div>
+  {% endif %}
+
+  <!-- Battle history -->
+  {% if history %}
+  <div class="section">
+    <h2>Recent Battles</h2>
+    {% for h in history %}
+    <div class="history-item">
+      <span class="{% if h.result == 'win' %}result-win{% else %}result-loss{% endif %}">
+        {{ h.result|upper }}
+      </span>
+      <span style="color:#a0a0b8">vs</span>
+      <span style="font-weight:500">
+        {{ h.opponent.username|default:"Unknown" }}
+      </span>
+      <span style="color:#a0a0b8;font-size:11px">
+        {{ h.created_at|date:"M d, Y" }}
+      </span>
+      <span class="{% if h.change >= 0 %}change-pos{% else %}change-neg{% endif %}">
+        {% if h.change >= 0 %}+{% endif %}{{ h.change }}
+      </span>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="section">
+    <h2>Recent Battles</h2>
+    <div style="color:#a0a0b8;font-size:13px;padding:16px 0">
+      No battles yet. <a href="/battle/" style="color:#7c6dfa">Start one!</a>
+    </div>
+  </div>
+  {% endif %}
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+{% if chart_data %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<script>
+const chartData = {{ chart_data|safe }};
+const labels  = chartData.map((_, i) => `Battle ${i + 1}`);
+const ratings = chartData.map(d => d.rating_after);
+
+const ctx = document.getElementById('ratingChart').getContext('2d');
+new Chart(ctx, {
+    type: 'line',
+    data: {
+        labels,
+        datasets: [{
+            label: 'ELO Rating',
+            data: ratings,
+            borderColor: '#7c6dfa',
+            backgroundColor: 'rgba(124,109,250,0.1)',
+            borderWidth: 2,
+            pointRadius: 3,
+            pointBackgroundColor: '#7c6dfa',
+            tension: 0.3,
+            fill: true,
+        }]
+    },
+    options: {
+        responsive: true,
+        plugins: {
+            legend: { display: false },
+            tooltip: {
+                callbacks: {
+                    label: ctx => `Rating: ${ctx.parsed.y}`
+                }
+            }
+        },
+        scales: {
+            x: {
+                grid:  { color: '#2d2d44' },
+                ticks: { color: '#a0a0b8', font: { size: 11 } }
+            },
+            y: {
+                grid:  { color: '#2d2d44' },
+                ticks: { color: '#a0a0b8', font: { size: 11 } }
+            }
+        }
+    }
+});
+</script>
+{% endif %}
+{% endblock %}

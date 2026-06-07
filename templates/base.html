@@ -110,12 +110,13 @@
   <a href="/" class="nav-brand">⚔️ Dev<span>Duel</span></a>
   <div class="nav-links">
     {% if user.is_authenticated %}
-      <a href="/">Lobby</a>
+      <a href="/battle/">Lobby</a>
+      <a href="/battle/leaderboard/">Leaderboard</a>
+      <a href="/battle/profile/">{{ user.username }}</a>
       <a href="/admin/">Admin</a>
-      <span style="color:#a0a0b8;font-size:14px">{{ user.username }}</span>
       <a href="/admin/logout/" class="btn btn-secondary" style="padding:5px 12px">Logout</a>
     {% else %}
-      <a href="/admin/" class="btn btn-primary">Login</a>
+      <a href="/admin/login/" class="btn btn-primary">Login</a>
     {% endif %}
   </div>
 </nav>
