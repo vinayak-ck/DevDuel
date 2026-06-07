@@ -11,6 +11,12 @@ SECRET_KEY   = config('SECRET_KEY')
 DEBUG        = config('DEBUG', default=False, cast=bool)
 ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='127.0.0.1,localhost', cast=Csv())
 
+# devduel/settings.py
+CSRF_TRUSTED_ORIGINS = [
+    'https://*.railway.app',
+    'https://devduel-production-cf37.up.railway.app',
+]
+
 # ── Apps ──
 INSTALLED_APPS = [
     'daphne',
