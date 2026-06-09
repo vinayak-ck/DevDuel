@@ -6,15 +6,27 @@ import dj_database_url
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+USE_X_FORWARDED_HOST    = True
+
 # ── Security ──
 SECRET_KEY   = config('SECRET_KEY')
 DEBUG        = config('DEBUG', default=False, cast=bool)
-ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='127.0.0.1,localhost', cast=Csv())
+ALLOWED_HOSTS = config(
+    'ALLOWED_HOSTS', 
+    default='127.0.0.1,localhost', 
+    cast=Csv()
+    )
 
-# devduel/settings.py
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+USE_X_FORWARDED_HOST    = True
+SECURE_SSL_REDIRECT     = not DEBUG   # redirect http → https in production
+
 CSRF_TRUSTED_ORIGINS = [
     'https://*.railway.app',
     'https://devduel-production-cf37.up.railway.app',
+    'http://127.0.0.1:8000',
+    'http://localhost:8000',
 ]
 
 # ── Apps ──

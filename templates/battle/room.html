@@ -203,7 +203,9 @@ select {
     <div class="spinner"></div>
     <h2>Waiting for opponent...</h2>
     <p>Share this link with your opponent:</p>
-    <div class="room-link" id="roomLink">{{ request.build_absolute_uri }}</div>
+    <div class="room-link" id="roomLink">
+      {% if request.is_secure %}https{% else %}http{% endif %}://{{ request.get_host }}{% url 'battle_room' room_id=room_id %}
+    </div>
     <button class="btn btn-secondary" onclick="copyRoomLink()">Copy Link</button>
   </div>
 </div>
@@ -414,29 +416,32 @@ let reconnectTimer    = null;
 let manuallyClosed    = false;
 let debounceTimer     = null;
 
+let pingInterval = null;
 function connectWS() {
-  const url = `ws://${window.location.host}/ws/battle/${ROOM_ID}/`;
+  const isLocal = window.location.hostname === '127.0.0.1' || window.location.hostname === 'localhost';
+  const protocol = isLocal ? 'ws:' : 'wss:';
+  const url = `${protocol}//${window.location.host}/ws/battle/${ROOM_ID}/`;
   ws = new WebSocket(url);
-
   ws.onopen = () => {
-    reconnectAttempts = 0;
-    setStatus('connected', 'Connected');
-    clearTimeout(reconnectTimer);
+      reconnectAttempts = 0;
+      setStatus('connected', 'Connected');
+      hideReconnectBanner();
+      // ── ping every 25 seconds to keep connection alive ──
+    clearInterval(pingInterval);
+    pingInterval = setInterval(() => {
+        if (ws && ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({ type: 'ping' }));
+        }
+    }, 25000);
   };
-
-  ws.onmessage = (event) => {
-    let data;
-    try { data = JSON.parse(event.data); }
-    catch(e) { return; }
-    routeMessage(data);
-  };
-
   ws.onclose = (event) => {
-    setStatus('disconnected', 'Reconnecting...');
-    if (!manuallyClosed) scheduleReconnect();
+      setStatus('disconnected', 'Reconnecting...');
+      clearInterval(pingInterval);  
+      if (!manuallyClosed) scheduleReconnect();
   };
-
-  ws.onerror = () => {};
+  ws.onerror = () => {
+      clearInterval(pingInterval);
+  };
 }
 
 function scheduleReconnect() {
