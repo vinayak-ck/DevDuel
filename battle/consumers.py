@@ -222,13 +222,16 @@ class BattleConsumer(AsyncWebsocketConsumer):
 
         test_cases = await self.get_test_cases(battle)
 
+        judge_url = f"{settings.JUDGE_URL}/execute"
+        print(f"[Judge] Calling: {judge_url}")
+        
         if not test_cases:
             return {
                 'verdict': 'RE', 'time_ms': 0, 'passed': 0,
                 'total': 0, 'stderr': 'No test cases found for this problem.',
             }
 
-        judge_url = f"{settings.JUDGE_URL}/execute"   
+        
 
         payload = {
             'code':            code,
