@@ -1,24 +1,24 @@
 # Django core
-Django>=6.0
-djangorestframework>=3.15
-daphne>=4.1
+Django==5.2.6
+djangorestframework==3.16.0
+daphne==4.1.2
 
 # Channels + Redis
-channels>=4.1
-channels-redis>=4.2
+channels==4.1.0
+channels-redis==4.2.0
 
 # Database
-mysqlclient>=2.2
-dj-database-url>=2.1
+mysqlclient==2.2.4
+dj-database-url==2.2.0
 
 # Production
-whitenoise>=6.7
-gunicorn>=22.0
+whitenoise==6.8.2
+gunicorn==23.0.0
 
 # Async HTTP
-aiohttp>=3.10
+aiohttp==3.10.11
 
 # Utils
-python-decouple>=3.8
-pillow>=10.0
-redis>=5.0
+python-decouple==3.8
+pillow==11.0.0
+redis==5.0.8
