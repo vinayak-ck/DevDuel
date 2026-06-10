@@ -417,30 +417,43 @@ let manuallyClosed    = false;
 let debounceTimer     = null;
 
 let pingInterval = null;
+function showReconnectBanner(message) {
+    const banner = document.getElementById('reconnect-banner');
+    if (banner) { banner.textContent = message; banner.style.display = 'block'; }
+}
+
+function hideReconnectBanner() {
+    const banner = document.getElementById('reconnect-banner');
+    if (banner) banner.style.display = 'none';
+}
 function connectWS() {
   const isLocal = window.location.hostname === '127.0.0.1' || window.location.hostname === 'localhost';
   const protocol = isLocal ? 'ws:' : 'wss:';
   const url = `${protocol}//${window.location.host}/ws/battle/${ROOM_ID}/`;
   ws = new WebSocket(url);
   ws.onopen = () => {
+      // ── ping FIRST — before anything else ──
+      clearInterval(pingInterval);
+      pingInterval = setInterval(() => {
+          if (ws && ws.readyState === WebSocket.OPEN) {
+              ws.send(JSON.stringify({ type: 'ping' }));
+          }
+      }, 20000);   // every 20 seconds
+    
       reconnectAttempts = 0;
       setStatus('connected', 'Connected');
-      hideReconnectBanner();
-      // ── ping every 25 seconds to keep connection alive ──
-    clearInterval(pingInterval);
-    pingInterval = setInterval(() => {
-        if (ws && ws.readyState === WebSocket.OPEN) {
-            ws.send(JSON.stringify({ type: 'ping' }));
-        }
-    }, 25000);
+      hideReconnectBanner();   // safe now — function is defined
+      clearTimeout(reconnectTimer);
   };
   ws.onclose = (event) => {
       setStatus('disconnected', 'Reconnecting...');
-      clearInterval(pingInterval);  
+      clearInterval(pingInterval);
+      showReconnectBanner('Connection lost. Reconnecting...');
       if (!manuallyClosed) scheduleReconnect();
   };
   ws.onerror = () => {
       clearInterval(pingInterval);
+      showReconnectBanner('Error occurred. Reconnecting...');
   };
 }
 
