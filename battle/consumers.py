@@ -151,6 +151,10 @@ class BattleConsumer(AsyncWebsocketConsumer):
         code     = data.get('code', '').strip()
         language = data.get('language', 'python')
 
+        print("[SUBMIT] START")
+
+        print("[SUBMIT] BEFORE FIRST GROUP_SEND")
+
         if not code:
             await self.send_json({'type': 'error', 'message': 'Cannot submit empty code.'})
             return
@@ -173,9 +177,13 @@ class BattleConsumer(AsyncWebsocketConsumer):
                 'submission_id': submission.id,
             }
         )
+        print("[SUBMIT] AFTER FIRST GROUP_SEND")
 
         # call the judge
         verdict = await self.run_judge(code, language, battle)
+
+        print("[SUBMIT] JUDGE RETURNED", verdict)
+        print("[SUBMIT] BEFORE SECOND GROUP_SEND")
 
         # save verdict to DB
         await self.update_submission_verdict(submission, verdict)
@@ -194,6 +202,8 @@ class BattleConsumer(AsyncWebsocketConsumer):
                 'submission_id': submission.id,
             }
         )
+
+        print("[SUBMIT] AFTER SECOND GROUP_SEND")
 
         # if AC — end the battle
         if verdict['verdict'] == 'AC':
