@@ -422,27 +422,39 @@ function connectWS() {
     const isLocal = ['127.0.0.1', 'localhost'].includes(window.location.hostname);
     const proto   = isLocal ? 'ws:' : 'wss:';
     const url     = `${proto}//${window.location.host}/ws/battle/${ROOM_ID}/`;
+    let battleStatePoll = null;
 
     ws = new WebSocket(url);
 
     ws.onopen = () => {
-        // ── start ping FIRST — before anything else ──
-        // Railway kills connections idle > 55s
-        // Ping every 15s = well under the threshold
+        // ping first
         clearInterval(pingInterval);
         pingInterval = setInterval(() => {
             if (ws && ws.readyState === WebSocket.OPEN) {
                 ws.send(JSON.stringify({ type: 'ping' }));
             }
         }, 15000);
-
-        // reset reconnect state
+      
         reconnectAttempts = 0;
         clearTimeout(reconnectTimer);
-
-        // update UI
         setStatus('connected', 'Connected');
         hideReconnectBanner();
+      
+        // ── HTTP poll every 5s as fallback for creator waiting ──
+        // Handles case where Redis group_send fails to deliver player_event
+        clearInterval(battleStatePoll);
+        battleStatePoll = setInterval(async () => {
+            try {
+                const resp = await fetch(`/battle/api/status/${ROOM_ID}/`);
+                const data = await resp.json();
+                if (data.status === 'active') {
+                    // battle started — dismiss overlay even if WS message was missed
+                    const overlay = document.getElementById('waitingOverlay');
+                    if (overlay) overlay.style.display = 'none';
+                    clearInterval(battleStatePoll);
+                }
+            } catch(e) {}
+        }, 5000);
     };
 
     ws.onmessage = (event) => {
@@ -454,6 +466,7 @@ function connectWS() {
 
     ws.onclose = (event) => {
         clearInterval(pingInterval);
+        clearInterval(battleStatePoll);
         setStatus('disconnected', 'Reconnecting...');
         showReconnectBanner('Connection lost. Reconnecting...');
         if (!manuallyClosed) scheduleReconnect();
