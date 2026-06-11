@@ -370,167 +370,162 @@ select {
 
 <script>
 // ── room data ──
-const roomData    = document.getElementById('room-data').dataset;
-const ROOM_ID     = roomData.roomId;
+const roomData     = document.getElementById('room-data').dataset;
+const ROOM_ID      = roomData.roomId;
 const CURRENT_USER = roomData.currentUser;
+const PLAYER_A     = '{{ battle.player_a.username|default:"" }}';
 
 // ── language templates ──
 const TEMPLATES = {
-  python: `# Read input with: input()
-# Print output with: print()
-
-def solve():
-    pass
-
-solve()
-`,
-  cpp: `#include <bits/stdc++.h>
-using namespace std;
-
-int main() {
-    ios_base::sync_with_stdio(false);
-    cin.tie(NULL);
-
-    return 0;
-}
-`,
-  java: `import java.util.*;
-
-public class Solution {
-    public static void main(String[] args) {
-        Scanner sc = new Scanner(System.in);
-
-    }
-}
-`
+  python: `# Read input with: input()\n# Print output with: print()\n\ndef solve():\n    pass\n\nsolve()\n`,
+  cpp: `#include <bits/stdc++.h>\nusing namespace std;\n\nint main() {\n    ios_base::sync_with_stdio(false);\n    cin.tie(NULL);\n\n    return 0;\n}\n`,
+  java: `import java.util.*;\n\npublic class Solution {\n    public static void main(String[] args) {\n        Scanner sc = new Scanner(System.in);\n\n    }\n}\n`
 };
 
 // ── state ──
-let editor = null;
-let battle = { isReconnecting: false };
-
-// ── WebSocket connection ──
-let ws = null;
+let editor          = null;
+let ws              = null;
+let pingInterval    = null;
+let reconnectTimer  = null;
 let reconnectAttempts = 0;
-let reconnectTimer    = null;
-let manuallyClosed    = false;
-let debounceTimer     = null;
+let manuallyClosed  = false;
+let debounceTimer   = null;
 
-let pingInterval = null;
-function showReconnectBanner(message) {
-    const banner = document.getElementById('reconnect-banner');
-    if (banner) { banner.textContent = message; banner.style.display = 'block'; }
+// ── UI helpers — defined BEFORE connectWS ──
+function setStatus(state, label) {
+    const dot = document.getElementById('statusDot');
+    const lbl = document.getElementById('statusLabel');
+    if (dot) dot.className = `status-dot ${state}`;
+    if (lbl) lbl.textContent = label;
+}
+
+function showReconnectBanner(msg) {
+    // optional — only shows if element exists
+    const el = document.getElementById('reconnect-banner');
+    if (el) { el.textContent = msg; el.style.display = 'block'; }
 }
 
 function hideReconnectBanner() {
-    const banner = document.getElementById('reconnect-banner');
-    if (banner) banner.style.display = 'none';
+    const el = document.getElementById('reconnect-banner');
+    if (el) el.style.display = 'none';
 }
+
+function sendWS(type, payload={}) {
+    if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type, ...payload }));
+    }
+}
+
+// ── WebSocket ──
 function connectWS() {
-  const isLocal = window.location.hostname === '127.0.0.1' || window.location.hostname === 'localhost';
-  const protocol = isLocal ? 'ws:' : 'wss:';
-  const url = `${protocol}//${window.location.host}/ws/battle/${ROOM_ID}/`;
-  ws = new WebSocket(url);
-  ws.onopen = () => {
-      // ── ping FIRST — before anything else ──
-      clearInterval(pingInterval);
-      pingInterval = setInterval(() => {
-          if (ws && ws.readyState === WebSocket.OPEN) {
-              ws.send(JSON.stringify({ type: 'ping' }));
-          }
-      }, 20000);   // every 20 seconds
-    
-      reconnectAttempts = 0;
-      setStatus('connected', 'Connected');
-      hideReconnectBanner();   // safe now — function is defined
-      clearTimeout(reconnectTimer);
-  };
-  ws.onclose = (event) => {
-      setStatus('disconnected', 'Reconnecting...');
-      clearInterval(pingInterval);
-      showReconnectBanner('Connection lost. Reconnecting...');
-      if (!manuallyClosed) scheduleReconnect();
-  };
-  ws.onerror = () => {
-      clearInterval(pingInterval);
-      showReconnectBanner('Error occurred. Reconnecting...');
-  };
+    // force wss:// on Railway, ws:// on localhost
+    const isLocal = ['127.0.0.1', 'localhost'].includes(window.location.hostname);
+    const proto   = isLocal ? 'ws:' : 'wss:';
+    const url     = `${proto}//${window.location.host}/ws/battle/${ROOM_ID}/`;
+
+    ws = new WebSocket(url);
+
+    ws.onopen = () => {
+        // ── start ping FIRST — before anything else ──
+        // Railway kills connections idle > 55s
+        // Ping every 15s = well under the threshold
+        clearInterval(pingInterval);
+        pingInterval = setInterval(() => {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({ type: 'ping' }));
+            }
+        }, 15000);
+
+        // reset reconnect state
+        reconnectAttempts = 0;
+        clearTimeout(reconnectTimer);
+
+        // update UI
+        setStatus('connected', 'Connected');
+        hideReconnectBanner();
+    };
+
+    ws.onmessage = (event) => {
+        let data;
+        try { data = JSON.parse(event.data); }
+        catch(e) { return; }
+        routeMessage(data);
+    };
+
+    ws.onclose = (event) => {
+        clearInterval(pingInterval);
+        setStatus('disconnected', 'Reconnecting...');
+        showReconnectBanner('Connection lost. Reconnecting...');
+        if (!manuallyClosed) scheduleReconnect();
+    };
+
+    ws.onerror = () => {
+        clearInterval(pingInterval);
+    };
 }
 
 function scheduleReconnect() {
-  const delay = Math.min(1000 * Math.pow(2, reconnectAttempts), 30000);
-  reconnectAttempts++;
-  reconnectTimer = setTimeout(connectWS, delay);
-}
-
-function sendWS(type, payload = {}) {
-  if (ws && ws.readyState === WebSocket.OPEN) {
-    ws.send(JSON.stringify({ type, ...payload }));
-  }
+    const delay = Math.min(1000 * Math.pow(2, reconnectAttempts), 30000);
+    reconnectAttempts++;
+    reconnectTimer = setTimeout(connectWS, delay);
 }
 
 // ── message router ──
 function routeMessage(data) {
-  switch(data.type) {
-    case 'battle_state':   onBattleState(data);   break;
-    case 'player_event':  onPlayerEvent(data);   break;
-    case 'progress_update': onProgressUpdate(data); break;
-    case 'verdict_event': onVerdictEvent(data);  break;
-    case 'battle_over':   onBattleOver(data);    break;
-    case 'pong':          break;
-    case 'error':
-      showToast('⚠️ ' + data.message);
-      break;
-  }
+    switch(data.type) {
+        case 'battle_state':    onBattleState(data);    break;
+        case 'player_event':    onPlayerEvent(data);    break;
+        case 'progress_update': onProgressUpdate(data); break;
+        case 'verdict_event':   onVerdictEvent(data);   break;
+        case 'battle_over':     onBattleOver(data);     break;
+        case 'pong':            break; // ping response — do nothing
+        case 'error':           showToast('⚠️ ' + data.message); break;
+    }
 }
 
-// ── message handlers ──
+// ── handlers ──
 function onBattleState(data) {
-  if (data.status === 'active') {
-    const overlay = document.getElementById('waitingOverlay');
-    if (overlay) overlay.style.display = 'none';
-  }
+    if (data.status === 'active') {
+        const overlay = document.getElementById('waitingOverlay');
+        if (overlay) overlay.style.display = 'none';
+    }
 }
 
 function onPlayerEvent(data) {
-  if (data.event === 'connected' && data.player !== CURRENT_USER) {
-    showToast(`⚔️ ${data.player} joined the battle!`);
-    const overlay = document.getElementById('waitingOverlay');
-    if (overlay) overlay.style.display = 'none';
-  } else if (data.event === 'disconnected' && data.player !== CURRENT_USER) {
-    showToast(`${data.player} disconnected`);
-  }
+    if (data.event === 'connected' && data.player !== CURRENT_USER) {
+        showToast(`⚔️ ${data.player} joined the battle!`);
+        const overlay = document.getElementById('waitingOverlay');
+        if (overlay) overlay.style.display = 'none';
+    } else if (data.event === 'disconnected' && data.player !== CURRENT_USER) {
+        showToast(`${data.player} disconnected`);
+    }
 }
 
 function onProgressUpdate(data) {
-  if (data.player === CURRENT_USER) return;
-  // find which player this is and update their bar
-  const isPlayerA = data.player === '{{ battle.player_a.username }}';
-  const bar = document.getElementById(isPlayerA ? 'progressA' : 'progressB');
-  if (bar) {
-    const pct = Math.min(data.lines * 2, 100); // rough estimate
-    bar.style.width = pct + '%';
-  }
+    if (data.player === CURRENT_USER) return;
+    const isA = data.player === PLAYER_A;
+    const bar = document.getElementById(isA ? 'progressA' : 'progressB');
+    if (bar) bar.style.width = Math.min(data.lines * 2, 100) + '%';
 }
 
 function onVerdictEvent(data) {
     if (data.verdict === 'JUDGING') return;
 
-    const isMe      = data.player === CURRENT_USER;
-    const isPlayerA = data.player === '{{ battle.player_a.username }}';
-    const badgeEl   = document.getElementById(isPlayerA ? 'verdictA' : 'verdictB');
+    const isMe  = data.player === CURRENT_USER;
+    const isA   = data.player === PLAYER_A;
+    const badge = document.getElementById(isA ? 'verdictA' : 'verdictB');
 
-    // update verdict badge in players bar
-    if (badgeEl) {
-        badgeEl.className   = `verdict-badge verdict-${data.verdict}`;
-        badgeEl.textContent = data.verdict;
+    if (badge) {
+        badge.className   = `verdict-badge verdict-${data.verdict}`;
+        badge.textContent = data.verdict;
     }
 
-    // show detailed results panel only for the player who submitted
     if (isMe) {
-        document.getElementById('btnSubmit').disabled    = false;
-        document.getElementById('btnSubmit').textContent = 'Submit (Ctrl+Enter)';
-        document.getElementById('submissionStatus').textContent = '';
+        const btn = document.getElementById('btnSubmit');
+        if (btn) { btn.disabled = false; btn.textContent = 'Submit (Ctrl+Enter)'; }
+
+        const statusEl = document.getElementById('submissionStatus');
+        if (statusEl) statusEl.textContent = '';
 
         showResultsPanel(data);
 
@@ -542,43 +537,6 @@ function onVerdictEvent(data) {
     }
 }
 
-function showResultsPanel(data) {
-    const panel   = document.getElementById('resultsPanel');
-    const verdict = data.verdict;
-
-    // verdict with color
-    const colors = {
-        AC:  '#4ade80', WA: '#f87171',
-        TLE: '#fbbf24', RE: '#c4b5fd', CE: '#93c5fd'
-    };
-    const rpVerdict = document.getElementById('rpVerdict');
-    rpVerdict.textContent = verdict;
-    rpVerdict.style.color = colors[verdict] || '#e2e2e8';
-
-    // time
-    const rpTime = document.getElementById('rpTime');
-    rpTime.textContent = data.time_ms ? `${data.time_ms.toFixed(1)}ms` : '';
-
-    // test cases passed
-    const rpTests = document.getElementById('rpTests');
-    if (data.tests_total > 0) {
-        rpTests.textContent = `${data.tests_passed}/${data.tests_total} test cases passed`;
-    } else {
-        rpTests.textContent = '';
-    }
-
-    // stderr for RE/CE
-    const rpStderr = document.getElementById('rpStderr');
-    if (data.stderr && (verdict === 'RE' || verdict === 'CE' || verdict === 'WA')) {
-        rpStderr.style.display = 'block';
-        rpStderr.textContent   = data.stderr.substring(0, 2000);
-    } else {
-        rpStderr.style.display = 'none';
-    }
-
-    panel.style.display = 'block';
-}
-
 function onBattleOver(data) {
     const modal    = document.getElementById('battleOverModal');
     const titleEl  = document.getElementById('modalTitle');
@@ -586,125 +544,136 @@ function onBattleOver(data) {
     const ratingEl = document.getElementById('modalRatingChange');
     const isWinner = data.winner === CURRENT_USER;
 
-    titleEl.textContent = isWinner ? '🏆 You Won!' : '💀 You Lost';
-    descEl.textContent  = isWinner
+    if (titleEl)  titleEl.textContent  = isWinner ? '🏆 You Won!' : '💀 You Lost';
+    if (descEl)   descEl.textContent   = isWinner
         ? `You beat ${data.loser}! Great solve.`
         : `${data.winner} solved it first. Better luck next time!`;
 
-    // show rating change
-    if (data.rating_changes) {
+    if (ratingEl && data.rating_changes) {
         const rc   = data.rating_changes;
         const me   = CURRENT_USER === rc.player_a.username ? rc.player_a : rc.player_b;
         const sign = me.change >= 0 ? '+' : '';
         const col  = me.change >= 0 ? '#4ade80' : '#f87171';
         ratingEl.innerHTML = `
-            <span style="color:${col};font-size:20px;font-weight:700">
-                ${sign}${me.change}
-            </span>
-            <span style="color:#a0a0b8;font-size:13px">
-                &nbsp; rating (${me.old_rating} → ${me.new_rating})
-            </span>`;
+            <span style="color:${col};font-size:20px;font-weight:700">${sign}${me.change}</span>
+            <span style="color:#a0a0b8;font-size:13px">&nbsp;rating (${me.old_rating} → ${me.new_rating})</span>`;
     }
 
-    modal.classList.add('show');
+    if (modal) modal.classList.add('show');
     manuallyClosed = true;
+    clearInterval(pingInterval);
     if (ws) ws.close(1000);
+}
+
+function showResultsPanel(data) {
+    const panel = document.getElementById('resultsPanel');
+    if (!panel) return;
+    const colors = { AC:'#4ade80', WA:'#f87171', TLE:'#fbbf24', RE:'#c4b5fd', CE:'#93c5fd' };
+    const rv = document.getElementById('rpVerdict');
+    if (rv) { rv.textContent = data.verdict; rv.style.color = colors[data.verdict] || '#e2e2e8'; }
+    const rt = document.getElementById('rpTime');
+    if (rt) rt.textContent = data.time_ms ? `${data.time_ms.toFixed(1)}ms` : '';
+    const rp = document.getElementById('rpTests');
+    if (rp) rp.textContent = data.tests_total > 0
+        ? `${data.tests_passed}/${data.tests_total} test cases passed` : '';
+    const rs = document.getElementById('rpStderr');
+    if (rs) {
+        if (data.stderr && ['RE','CE','WA'].includes(data.verdict)) {
+            rs.style.display = 'block';
+            rs.textContent   = data.stderr.substring(0, 2000);
+        } else {
+            rs.style.display = 'none';
+        }
+    }
+    panel.style.display = 'block';
 }
 
 // ── submit ──
 function submitCode() {
-  if (!editor) return;
-  const code     = editor.getValue().trim();
-  const language = document.getElementById('languageSelect').value;
+    if (!editor) return;
+    const code     = editor.getValue().trim();
+    const language = document.getElementById('languageSelect').value;
+    if (!code) { showToast('Write some code first!'); return; }
 
-  if (!code) { showToast('Write some code first!'); return; }
+    const btn = document.getElementById('btnSubmit');
+    if (btn) { btn.disabled = true; btn.textContent = 'Judging...'; }
 
-  document.getElementById('btnSubmit').disabled    = true;
-  document.getElementById('btnSubmit').textContent = 'Judging...';
-  document.getElementById('submissionStatus').textContent = 'Submitting...';
+    const statusEl = document.getElementById('submissionStatus');
+    if (statusEl) statusEl.textContent = 'Submitting...';
 
-  sendWS('submit_code', { code, language });
+    sendWS('submit_code', { code, language });
 }
 
-// ── UI helpers ──
-function setStatus(state, label) {
-  const dot = document.getElementById('statusDot');
-  const lbl = document.getElementById('statusLabel');
-  dot.className = `status-dot ${state}`;
-  lbl.textContent = label;
-}
-
+// ── copy room link ──
 function copyRoomLink() {
-  const link = document.getElementById('roomLink').textContent;
-  navigator.clipboard.writeText(link).then(() => showToast('Link copied!'));
+    const el = document.getElementById('roomLink');
+    if (!el) return;
+    navigator.clipboard.writeText(el.textContent.trim())
+        .then(() => showToast('Link copied!'));
 }
 
 // ── Monaco setup ──
 require.config({
-  paths: {
-    'vs': 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs'
-  }
+    paths: { 'vs': 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs' }
 });
 
 require(['vs/editor/editor.main'], function () {
-  editor = monaco.editor.create(
-    document.getElementById('editor-container'),
-    {
-      value:               TEMPLATES['python'],
-      language:            'python',
-      theme:               'vs-dark',
-      fontSize:            14,
-      minimap:             { enabled: false },
-      automaticLayout:     true,
-      scrollBeyondLastLine: false,
-      lineNumbers:         'on',
-      wordWrap:            'on',
-      tabSize:             4,
-    }
-  );
+    editor = monaco.editor.create(
+        document.getElementById('editor-container'),
+        {
+            value:                TEMPLATES['python'],
+            language:             'python',
+            theme:                'vs-dark',
+            fontSize:             14,
+            minimap:              { enabled: false },
+            automaticLayout:      true,
+            scrollBeyondLastLine: false,
+            lineNumbers:          'on',
+            wordWrap:             'on',
+            tabSize:              4,
+        }
+    );
 
-  // cursor position in footer
-  editor.onDidChangeCursorPosition(e => {
-    document.getElementById('cursorPosition').textContent =
-      `Line ${e.position.lineNumber}, Col ${e.position.column}`;
-  });
+    // cursor position in footer
+    editor.onDidChangeCursorPosition(e => {
+        const el = document.getElementById('cursorPosition');
+        if (el) el.textContent = `Line ${e.position.lineNumber}, Col ${e.position.column}`;
+    });
 
-  // debounced progress update
-  editor.onDidChangeModelContent(() => {
-    // update my own progress bar immediately
-    const lines = editor.getModel().getLineCount();
-    const isPlayerA = CURRENT_USER === '{{ battle.player_a.username }}';
-    const myBar = document.getElementById(isPlayerA ? 'progressA' : 'progressB');
-    if (myBar) myBar.style.width = Math.min(lines * 2, 100) + '%';
+    // update my own progress bar + debounced send to opponent
+    editor.onDidChangeModelContent(() => {
+        const lines = editor.getModel().getLineCount();
+        const isA   = CURRENT_USER === PLAYER_A;
+        const myBar = document.getElementById(isA ? 'progressA' : 'progressB');
+        if (myBar) myBar.style.width = Math.min(lines * 2, 100) + '%';
 
-    // send to opponent debounced
-    clearTimeout(debounceTimer);
-    debounceTimer = setTimeout(() => {
-      sendWS('code_update', {
-        lines: editor.getModel().getLineCount(),
-        lang:  document.getElementById('languageSelect').value,
-      });
-    }, 300);
-  });
+        clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(() => {
+            sendWS('code_update', {
+                lines: lines,
+                lang:  document.getElementById('languageSelect').value,
+            });
+        }, 300);
+    });
 
-  // language switcher
-  document.getElementById('languageSelect').addEventListener('change', e => {
-    const lang = e.target.value;
-    monaco.editor.setModelLanguage(editor.getModel(), lang);
-    editor.setValue(TEMPLATES[lang]);
-    editor.focus();
-  });
+    // language switcher
+    document.getElementById('languageSelect').addEventListener('change', e => {
+        const lang = e.target.value;
+        monaco.editor.setModelLanguage(editor.getModel(), lang);
+        editor.setValue(TEMPLATES[lang]);
+        editor.focus();
+    });
 
-  // Ctrl+Enter to submit
-  editor.addAction({
-    id:           'submit',
-    label:        'Submit Solution',
-    keybindings:  [monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter],
-    run:          submitCode,
-  });
+    // Ctrl+Enter to submit
+    editor.addAction({
+        id:          'submit',
+        label:       'Submit Solution',
+        keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter],
+        run:         submitCode,
+    });
 
-  // connect WebSocket after editor is ready
-  connectWS();
+    // ── connect WebSocket AFTER editor is ready ──
+    connectWS();
 });
 </script>
 {% endblock %}
