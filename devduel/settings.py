@@ -108,23 +108,15 @@ else:
 
 # ── Channel Layer ──
 # Railway provides REDIS_URL — use it if available
+# ── Channel Layer ──
 REDIS_URL = config('REDIS_URL', default='redis://127.0.0.1:6379')
 
+# InMemoryChannelLayer: Railway runs 1 replica — no Redis needed for messaging
+# Redis is still used for the leaderboard (ZADD/ZRANGE) — unaffected
 CHANNEL_LAYERS = {
-    'default': {
-        'BACKEND': 'channels_redis.core.RedisChannelLayer',
-        'CONFIG': {
-            'hosts': [REDIS_URL],
-            # ── connection reliability settings ──
-            'socket_connect_timeout': 10,   # seconds to establish connection
-            'socket_timeout':         10,   # seconds for read/write operations
-            'retry_on_timeout':       True, # auto-retry if timeout occurs
-            'health_check_interval':  30,   # ping Redis every 30s (keep-alive)
-            # ── message settings ──
-            'capacity':               1500, # max messages queued per channel
-            'expiry':                 60,   # messages expire after 60s
-        },
-    },
+    "default": {
+        "BACKEND": "channels.layers.InMemoryChannelLayer"
+    }
 }
 
 # ── Judge URL ──
@@ -169,14 +161,3 @@ REST_FRAMEWORK = {
         'rest_framework.permissions.IsAuthenticatedOrReadOnly',
     ],
 }
-
-# ── Redis connectivity check (runs on startup) ──
-import sys
-if 'runserver' in sys.argv or 'daphne' in str(sys.argv):
-    try:
-        import redis as _redis
-        _r = _redis.Redis.from_url(REDIS_URL, socket_connect_timeout=5)
-        _r.ping()
-        print(f"[Startup] Redis connected: {REDIS_URL[:30]}...")
-    except Exception as _e:
-        print(f"[Startup] Redis connection FAILED: {_e}")
