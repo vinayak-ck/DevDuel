@@ -5,101 +5,323 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{% block title %}DevDuel{% endblock %}</title>
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
+    /* ── Design Tokens — Dark Purple ── */
+    :root {
+      --bg:           #0F172A;
+      --bg-1:         #1E293B;
+      --bg-2:         #263348;
+      --bg-3:         #2d3e57;
 
-    body {
-      font-family: 'Segoe UI', system-ui, sans-serif;
-      background: #0f0f1a;
-      color: #e2e2e8;
-      min-height: 100vh;
+      --glass-bg:     rgba(30,41,59,0.6);
+      --glass-bg-2:   rgba(30,41,59,0.85);
+      --glass-border: rgba(139,92,246,0.15);
+      --glass-hover:  rgba(139,92,246,0.30);
+
+      --accent:       #8B5CF6;
+      --accent-hover: #A78BFA;
+      --accent-soft:  rgba(139,92,246,0.12);
+      --accent-glow:  rgba(139,92,246,0.25);
+
+      --text-1:       #F8FAFC;
+      --text-2:       #94A3B8;
+      --text-3:       #475569;
+
+      --green:        #22C55E;
+      --green-soft:   rgba(34,197,94,0.12);
+      --red:          #EF4444;
+      --red-soft:     rgba(239,68,68,0.12);
+      --yellow:       #F59E0B;
+      --yellow-soft:  rgba(245,158,11,0.12);
+      --blue:         #38BDF8;
+
+      --ease-1: cubic-bezier(0.25,0,0,1);
+      --ease-2: cubic-bezier(0.4,0,0.2,1);
+
+      --r-sm:  8px;
+      --r:     12px;
+      --r-lg:  18px;
+      --r-xl:  24px;
     }
 
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI',
+                   'Inter', sans-serif;
+      background: var(--bg);
+      color: var(--text-1);
+      min-height: 100vh;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ── Scrollbar ── */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: var(--bg); }
+    ::-webkit-scrollbar-thumb {
+      background: var(--bg-2);
+      border-radius: 99px;
+    }
+    ::-webkit-scrollbar-thumb:hover { background: var(--accent); }
+
+    /* ── Navbar ── */
     nav {
-      background: #1a1a2e;
-      border-bottom: 1px solid #2d2d44;
-      padding: 0 24px;
-      height: 52px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      height: 54px;
       display: flex;
       align-items: center;
       justify-content: space-between;
+      padding: 0 28px;
+      background: rgba(15,23,42,0.85);
+      backdrop-filter: saturate(180%) blur(24px);
+      -webkit-backdrop-filter: saturate(180%) blur(24px);
+      border-bottom: 1px solid var(--glass-border);
     }
 
     .nav-brand {
-      font-size: 20px;
+      font-size: 17px;
       font-weight: 700;
-      color: #7c6dfa;
+      color: var(--text-1);
       text-decoration: none;
-      letter-spacing: -0.5px;
+      letter-spacing: -0.3px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
     }
 
-    .nav-brand span { color: #e2e2e8; }
+    .nav-brand-icon {
+      width: 28px;
+      height: 28px;
+      background: linear-gradient(135deg, var(--accent), var(--accent-hover));
+      border-radius: 7px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      box-shadow: 0 0 12px var(--accent-glow);
+    }
 
-    .nav-links { display: flex; gap: 8px; align-items: center; }
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
 
     .nav-links a {
-      color: #a0a0b8;
+      color: var(--text-2);
       text-decoration: none;
       font-size: 14px;
-      padding: 6px 12px;
-      border-radius: 6px;
-      transition: all 0.15s;
+      font-weight: 400;
+      padding: 5px 12px;
+      border-radius: var(--r-sm);
+      transition: color 0.15s var(--ease-1),
+                  background 0.15s var(--ease-1);
     }
 
-    .nav-links a:hover { background: #2d2d44; color: #e2e2e8; }
+    .nav-links a:hover {
+      color: var(--text-1);
+      background: var(--accent-soft);
+    }
 
+    .nav-rating {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-2);
+      padding: 5px 12px;
+      background: var(--glass-bg);
+      border: 1px solid var(--glass-border);
+      border-radius: 99px;
+      font-variant-numeric: tabular-nums;
+      transition: border-color 0.15s;
+    }
+
+    .nav-rating:hover {
+      border-color: var(--accent) !important;
+      color: var(--text-1) !important;
+    }
+
+    .nav-rating .elo-num {
+      color: var(--accent-hover);
+      font-weight: 700;
+    }
+
+    /* ── Buttons ── */
     .btn {
       display: inline-flex;
       align-items: center;
+      justify-content: center;
       gap: 6px;
-      padding: 8px 16px;
-      border-radius: 8px;
+      padding: 8px 18px;
+      border-radius: var(--r-sm);
       font-size: 14px;
       font-weight: 500;
       cursor: pointer;
       border: none;
       text-decoration: none;
-      transition: all 0.15s;
+      transition: all 0.18s var(--ease-1);
+      font-family: inherit;
+      letter-spacing: -0.1px;
+      white-space: nowrap;
     }
 
-    .btn-primary { background: #7c6dfa; color: #fff; }
-    .btn-primary:hover { background: #6c5de8; }
-    .btn-secondary { background: #2d2d44; color: #e2e2e8; }
-    .btn-secondary:hover { background: #3d3d58; }
-    .btn-danger { background: #e24b4a; color: #fff; }
-    .btn-success { background: #22c55e; color: #fff; }
-    .btn-success:hover { background: #16a34a; }
+    /* primary — purple */
+    .btn-primary {
+      background: var(--accent);
+      color: #fff;
+      box-shadow: 0 0 0 0 var(--accent-glow);
+    }
+    .btn-primary:hover {
+      background: var(--accent-hover);
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px var(--accent-glow);
+    }
+    .btn-primary:active { transform: translateY(0); }
 
-    .container { max-width: 1200px; margin: 0 auto; padding: 24px; }
+    /* secondary — outlined */
+    .btn-secondary {
+      background: transparent;
+      color: var(--text-1);
+      border: 1px solid var(--glass-border);
+    }
+    .btn-secondary:hover {
+      border-color: var(--accent);
+      color: var(--accent-hover);
+      background: var(--accent-soft);
+      transform: translateY(-2px);
+    }
+    .btn-secondary:active { transform: translateY(0); }
 
+    /* ghost — text only */
+    .btn-ghost {
+      background: transparent;
+      color: var(--text-2);
+    }
+    .btn-ghost:hover {
+      color: var(--text-1);
+      background: var(--accent-soft);
+      transform: translateY(-2px);
+    }
+    .btn-ghost:active { transform: translateY(0); }
+
+    /* danger */
+    .btn-danger {
+      background: var(--red-soft);
+      color: var(--red);
+      border: 1px solid rgba(239,68,68,0.2);
+    }
+    .btn-danger:hover {
+      background: rgba(239,68,68,0.2);
+      transform: translateY(-2px);
+    }
+
+    /* success */
+    .btn-success {
+      background: var(--green);
+      color: #fff;
+    }
+    .btn-success:hover {
+      background: #16a34a;
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(34,197,94,0.25);
+    }
+
+    .btn-sm  { padding: 5px 12px; font-size: 13px; border-radius: 6px; }
+    .btn-lg  { padding: 12px 28px; font-size: 15px; border-radius: var(--r); }
+    .btn-full { width: 100%; }
+
+    /* ── Badges ── */
     .badge {
-      display: inline-block;
+      display: inline-flex;
+      align-items: center;
       padding: 2px 8px;
       border-radius: 99px;
       font-size: 11px;
       font-weight: 600;
+      letter-spacing: 0.02em;
     }
 
-    .badge-easy   { background: #14532d; color: #4ade80; }
-    .badge-medium { background: #713f12; color: #fbbf24; }
-    .badge-hard   { background: #7f1d1d; color: #f87171; }
+    .badge-easy   { background: var(--green-soft);  color: var(--green);  }
+    .badge-medium { background: var(--yellow-soft); color: var(--yellow); }
+    .badge-hard   { background: var(--red-soft);    color: var(--red);    }
 
+    /* ── Glass Card ── */
+    .glass-card {
+      background: var(--glass-bg);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--r-lg);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      transition: border-color 0.2s var(--ease-1),
+                  box-shadow   0.2s var(--ease-1);
+    }
+
+    .glass-card:hover {
+      border-color: var(--glass-hover);
+      box-shadow: 0 0 24px var(--accent-glow);
+    }
+
+    /* ── Input ── */
+    .input {
+      width: 100%;
+      background: rgba(15,23,42,0.6);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--r-sm);
+      padding: 10px 14px;
+      color: var(--text-1);
+      font-size: 14px;
+      font-family: inherit;
+      outline: none;
+      transition: border-color 0.15s var(--ease-1),
+                  box-shadow   0.15s var(--ease-1);
+    }
+
+    .input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px var(--accent-soft);
+    }
+
+    .input::placeholder { color: var(--text-3); }
+
+    /* ── Toast ── */
     .toast {
       position: fixed;
-      bottom: 24px;
-      right: 24px;
-      background: #2d2d44;
-      color: #e2e2e8;
-      padding: 12px 20px;
-      border-radius: 10px;
+      bottom: 28px;
+      left: 50%;
+      transform: translateX(-50%) translateY(16px);
+      background: var(--bg-1);
+      border: 1px solid var(--glass-border);
+      color: var(--text-1);
+      padding: 10px 20px;
+      border-radius: 99px;
       font-size: 14px;
-      border: 1px solid #3d3d58;
+      font-weight: 500;
       z-index: 9999;
       opacity: 0;
-      transform: translateY(8px);
-      transition: all 0.2s;
+      transition: all 0.25s var(--ease-2);
+      white-space: nowrap;
+      pointer-events: none;
+      backdrop-filter: blur(20px);
+      box-shadow: 0 8px 32px rgba(0,0,0,0.4);
     }
 
-    .toast.show { opacity: 1; transform: translateY(0); }
+    .toast.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+
+    /* ── Divider ── */
+    .divider {
+      height: 1px;
+      background: var(--glass-border);
+      margin: 24px 0;
+    }
+
+    /* ── Scrollbar thin ── */
+    .thin-scroll::-webkit-scrollbar { width: 4px; }
+    .thin-scroll::-webkit-scrollbar-thumb { background: var(--bg-3); }
 
     {% block extra_style %}{% endblock %}
   </style>
@@ -107,27 +329,26 @@
 <body>
 
 <nav>
-  <a href="/battle/" class="nav-brand">⚔️ Dev<span>Duel</span></a>
+  <a href="/" class="nav-brand">
+    <div class="nav-brand-icon">⚔</div>
+    DevDuel
+  </a>
   <div class="nav-links">
     {% if user.is_authenticated %}
       <a href="/battle/">Lobby</a>
       <a href="/battle/leaderboard/">Leaderboard</a>
-      <a href="/battle/profile/" class="nav-profile">
+      <a href="/battle/profile/" class="nav-rating" style="text-decoration:none">
         {{ user.username }}
         {% if user.profile.is_provisional %}
-          <span style="color:#fbbf24;font-size:10px">?</span>
+          <span style="color:var(--yellow)">?</span>
         {% endif %}
-        <span style="color:#7c6dfa;font-family:monospace;font-size:12px;margin-left:4px">
-          {{ user.profile.elo_rating }}
-        </span>
+        &nbsp;·&nbsp;
+        <span class="elo-num">{{ user.profile.elo_rating }}</span>
       </a>
-      <a href="/auth/logout/" class="btn btn-secondary"
-         style="padding:5px 12px;font-size:13px">Logout</a>
+      <a href="/auth/logout/" class="btn btn-ghost btn-sm">Logout</a>
     {% else %}
-      <a href="/auth/login/"    class="btn btn-secondary"
-         style="padding:5px 12px;font-size:13px">Login</a>
-      <a href="/auth/register/" class="btn btn-primary"
-         style="padding:5px 12px;font-size:13px">Register</a>
+      <a href="/auth/login/"    class="btn btn-ghost   btn-sm">Login</a>
+      <a href="/auth/register/" class="btn btn-primary btn-sm">Sign up</a>
     {% endif %}
   </div>
 </nav>
@@ -146,6 +367,34 @@ function showToast(msg, duration=3000) {
 </script>
 
 {% block scripts %}{% endblock %}
+
+<!-- ── Fixed Footer ── -->
+  <div style="
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(15,23,42,0.85);
+    backdrop-filter: blur(12px);
+    border-top: 1px solid var(--glass-border);
+    font-size: 12px;
+    color: var(--text-3);
+    z-index: 50;
+    letter-spacing: 0.01em;
+  ">
+    Made with&nbsp;<span style="color:#EF4444">❤️</span>&nbsp;by&nbsp;
+    <a href="https://vinayak-ck.github.io/MyPortfolio/"
+       target="_blank"
+       style="color:var(--accent-hover);text-decoration:none;font-weight:500;
+              transition:color 0.15s">
+      Vinayak C K
+    </a>
+  </div>
+
+  <!-- push page content above footer -->
+  <div style="height:36px"></div>
 
 </body>
 </html>

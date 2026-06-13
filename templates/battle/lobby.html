@@ -1,103 +1,346 @@
 {% extends "base.html" %}
-
 {% block title %}Lobby — DevDuel{% endblock %}
 
 {% block extra_style %}
-.lobby { max-width: 800px; margin: 40px auto; padding: 0 24px; }
-.lobby-header { margin-bottom: 32px; }
-.lobby-header h1 { font-size: 28px; font-weight: 700; margin-bottom: 8px; }
-.lobby-header p { color: #a0a0b8; font-size: 15px; }
-.actions { display: flex; gap: 12px; margin-bottom: 32px; }
-.rooms-title {
-  font-size: 13px; font-weight: 600; color: #a0a0b8;
-  text-transform: uppercase; letter-spacing: 0.08em;
-  margin-bottom: 12px;
+.lobby {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 48px 24px;
 }
-.room-card {
-  background: #1a1a2e;
-  border: 1px solid #2d2d44;
-  border-radius: 12px;
-  padding: 16px 20px;
-  margin-bottom: 10px;
+
+.lobby-header { margin-bottom: 36px; }
+
+.lobby-title {
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  margin-bottom: 6px;
+}
+
+.lobby-sub { font-size: 14px; color: var(--text-2); }
+
+/* action row */
+.lobby-actions {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 28px;
+  flex-wrap: wrap;
+}
+
+.lobby-actions .btn { padding: 9px 20px; }
+
+/* search + filter bar */
+.filter-bar {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+
+.search-input {
+  flex: 1;
+  min-width: 180px;
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-sm);
+  padding: 8px 14px 8px 36px;
+  color: var(--text-1);
+  font-size: 14px;
+  font-family: inherit;
+  outline: none;
+  transition: border-color 0.15s var(--ease-1);
+  position: relative;
+}
+
+.search-wrap { position: relative; flex: 1; min-width: 180px; }
+
+.search-icon {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-3);
+  font-size: 14px;
+  pointer-events: none;
+}
+
+.search-input:focus { border-color: rgba(255,255,255,0.25); }
+.search-input::placeholder { color: var(--text-3); }
+
+.filter-pills { display: flex; gap: 6px; }
+
+.filter-pill {
+  padding: 7px 14px;
+  border-radius: 99px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  border: 1px solid var(--glass-border);
+  background: var(--glass-bg);
+  color: var(--text-2);
+  transition: all 0.15s var(--ease-1);
+  font-family: inherit;
+}
+
+.filter-pill:hover {
+  border-color: var(--glass-border-hover);
+  color: var(--text-1);
+}
+
+.filter-pill.active {
+  background: var(--text-1);
+  color: var(--bg);
+  border-color: var(--text-1);
+}
+
+.filter-pill.easy.active   { background: var(--green);  border-color: var(--green);  color: #000; }
+.filter-pill.medium.active { background: var(--orange); border-color: var(--orange); color: #000; }
+.filter-pill.hard.active   { background: var(--red);    border-color: var(--red);    color: #fff; }
+
+/* section header */
+.section-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  transition: border-color 0.15s;
+  margin-bottom: 12px;
 }
-.room-card:hover { border-color: #7c6dfa; }
-.room-info h3 { font-size: 15px; font-weight: 600; margin-bottom: 4px; }
-.room-meta { font-size: 13px; color: #a0a0b8; display: flex; gap: 12px; }
+
+.section-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-3);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.room-count {
+  font-size: 12px;
+  color: var(--text-3);
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  padding: 2px 8px;
+  border-radius: 99px;
+}
+
+/* room card */
+.room-card {
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-lg);
+  padding: 18px 20px;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  transition: border-color 0.2s var(--ease-1),
+              background   0.2s var(--ease-1);
+}
+
+.room-card:hover {
+  border-color: var(--glass-border-hover);
+  background: var(--glass-bg-2);
+}
+
+.room-left { flex: 1; min-width: 0; }
+
+.room-problem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+  flex-wrap: wrap;
+}
+
+.room-problem-name {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-1);
+  letter-spacing: -0.2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.room-meta {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  font-size: 13px;
+  color: var(--text-3);
+}
+
+.room-meta-item { display: flex; align-items: center; gap: 5px; }
+
+.creator-rating {
+  font-size: 11px;
+  background: var(--glass-bg-2);
+  border: 1px solid var(--glass-border);
+  padding: 1px 6px;
+  border-radius: 99px;
+  color: var(--text-2);
+  font-weight: 500;
+}
+
+/* empty state */
 .empty-state {
-  text-align: center; padding: 48px 24px;
-  color: #a0a0b8;
-  background: #1a1a2e;
-  border: 1px dashed #2d2d44;
-  border-radius: 12px;
+  text-align: center;
+  padding: 64px 24px;
+  background: var(--glass-bg);
+  border: 1px dashed var(--glass-border);
+  border-radius: var(--radius-lg);
 }
-.empty-state h3 { font-size: 18px; color: #e2e2e8; margin-bottom: 8px; }
-.error-banner {
-  background: #7f1d1d;
-  border: 1px solid #991b1b;
-  color: #fca5a5;
-  padding: 12px 16px;
-  border-radius: 8px;
-  margin-bottom: 20px;
-  font-size: 14px;
+
+.empty-icon { font-size: 36px; margin-bottom: 12px; opacity: 0.4; }
+
+.empty-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-1);
+  margin-bottom: 6px;
 }
+
+.empty-sub { font-size: 14px; color: var(--text-3); }
+
+/* hidden filter state */
+.room-card.hidden { display: none; }
 {% endblock %}
 
 {% block content %}
 <div class="lobby">
   <div class="lobby-header">
-    <h1>⚔️ Battle Lobby</h1>
-    <p>Create a room or join an existing one. First to solve wins.</p>
+    <h1 class="lobby-title">Battle Lobby</h1>
+    <p class="lobby-sub">First to solve wins. Find an opponent and start battling.</p>
   </div>
 
-  {% if error %}
-    <div class="error-banner">⚠️ {{ error }}</div>
-  {% endif %}
-
-  <div class="actions">
-    <a href="/battle/find/" class="btn btn-primary" style="font-size:15px;padding:10px 24px">
-      ⚔️ Find Opponent
-    </a>
-    <a href="/battle/create/" class="btn btn-secondary">
-      + Create Room
-    </a>
+  <div class="lobby-actions">
+    <a href="/battle/find/" class="btn btn-primary">⚔️ Find Opponent</a>
+    <a href="/battle/create/" class="btn btn-secondary">+ Create Room</a>
   </div>
 
-  <div class="rooms-title">Open Rooms ({{ open_battles|length }})</div>
+  <div class="filter-bar">
+    <div class="search-wrap">
+      <span class="search-icon">🔍</span>
+      <input class="search-input" type="text" id="searchInput"
+             placeholder="Search problems..." oninput="filterRooms()">
+    </div>
+    <div class="filter-pills">
+      <button class="filter-pill active" data-filter="all"    onclick="setFilter(this,'all')">All</button>
+      <button class="filter-pill easy"   data-filter="easy"   onclick="setFilter(this,'easy')">Easy</button>
+      <button class="filter-pill medium" data-filter="medium" onclick="setFilter(this,'medium')">Medium</button>
+      <button class="filter-pill hard"   data-filter="hard"   onclick="setFilter(this,'hard')">Hard</button>
+    </div>
+  </div>
 
-  {% if open_battles %}
-    {% for battle in open_battles %}
-    <div class="room-card">
-      <div class="room-info">
-        <h3>
-          {{ battle.problem.title|default:"Mystery Problem" }}
-          {% if battle.problem %}
-            <span class="badge badge-{{ battle.problem.difficulty }}">
-              {{ battle.problem.get_difficulty_display }}
+  <div class="section-header">
+    <span class="section-title">Open Rooms</span>
+    <span class="room-count" id="roomCount">{{ open_battles|length }}</span>
+  </div>
+
+  <div id="roomList">
+    {% if open_battles %}
+      {% for battle in open_battles %}
+      <div class="room-card"
+           data-difficulty="{{ battle.problem.difficulty|default:'easy' }}"
+           data-problem="{{ battle.problem.title|default:''|lower }}">
+
+        <div class="room-left">
+          <div class="room-problem">
+            <span class="room-problem-name">
+              {{ battle.problem.title|default:"Mystery Problem" }}
             </span>
-          {% endif %}
-        </h3>
-        <div class="room-meta">
-          <span>🧑 {{ battle.player_a.username }}</span>
-          <span>⏱ {{ battle.time_limit_minutes }} min</span>
-          <span>🏠 {{ battle.room_id }}</span>
+            {% if battle.problem %}
+              <span class="badge badge-{{ battle.problem.difficulty }}">
+                {{ battle.problem.get_difficulty_display }}
+              </span>
+            {% endif %}
+          </div>
+
+          <div class="room-meta">
+            <div class="room-meta-item">
+              👤 {{ battle.player_a.username }}
+              {% if battle.player_a.profile %}
+                <span class="creator-rating">{{ battle.player_a.profile.elo_rating }}</span>
+              {% endif %}
+            </div>
+            <div class="room-meta-item">
+              ⏱ {{ battle.time_limit_minutes }}m
+            </div>
+            <div class="room-meta-item" style="font-family:monospace;font-size:11px">
+              {{ battle.room_id }}
+            </div>
+          </div>
         </div>
-      </div>
-      <!-- change this: -->
+
         <a href="/battle/room/{{ battle.room_id }}/"
-          class="btn btn-primary">
-          Join Battle
+           class="btn btn-secondary btn-sm" style="flex-shrink:0">
+          Join
         </a>
-    </div>
-    {% endfor %}
-  {% else %}
-    <div class="empty-state">
-      <h3>No open rooms</h3>
-      <p>Create one and wait for an opponent to join!</p>
-    </div>
-  {% endif %}
+      </div>
+      {% endfor %}
+    {% else %}
+      <div class="empty-state" id="emptyAll">
+        <div class="empty-icon">⚔️</div>
+        <div class="empty-title">No open rooms</div>
+        <div class="empty-sub">Create one and wait for an opponent, or click Find Opponent.</div>
+      </div>
+    {% endif %}
+  </div>
+
+  <!-- shown when filter has no results -->
+  <div class="empty-state" id="emptyFilter" style="display:none">
+    <div class="empty-icon">🔍</div>
+    <div class="empty-title">No rooms found</div>
+    <div class="empty-sub">Try a different search or filter.</div>
+  </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let activeFilter = 'all';
+
+function setFilter(btn, filter) {
+  activeFilter = filter;
+  document.querySelectorAll('.filter-pill').forEach(p => p.classList.remove('active'));
+  btn.classList.add('active');
+  filterRooms();
+}
+
+function filterRooms() {
+  const query  = document.getElementById('searchInput').value.toLowerCase().trim();
+  const cards  = document.querySelectorAll('.room-card');
+  let visible  = 0;
+
+  cards.forEach(card => {
+    const diff    = card.dataset.difficulty;
+    const problem = card.dataset.problem;
+    const matchD  = activeFilter === 'all' || diff === activeFilter;
+    const matchQ  = !query || problem.includes(query);
+
+    if (matchD && matchQ) {
+      card.classList.remove('hidden');
+      visible++;
+    } else {
+      card.classList.add('hidden');
+    }
+  });
+
+  document.getElementById('roomCount').textContent = visible;
+
+  const emptyAll    = document.getElementById('emptyAll');
+  const emptyFilter = document.getElementById('emptyFilter');
+
+  if (cards.length === 0) {
+    if (emptyAll) emptyAll.style.display = 'block';
+    if (emptyFilter) emptyFilter.style.display = 'none';
+  } else if (visible === 0) {
+    if (emptyAll) emptyAll.style.display = 'none';
+    if (emptyFilter) emptyFilter.style.display = 'block';
+  } else {
+    if (emptyAll) emptyAll.style.display = 'none';
+    if (emptyFilter) emptyFilter.style.display = 'none';
+  }
+}
+</script>
 {% endblock %}

@@ -17,13 +17,18 @@ Including another URLconf
 # devduel/urls.py
 from django.contrib import admin
 from django.urls import path, include
-from django.shortcuts import redirect
+from django.shortcuts import redirect, render
 from django.conf import settings
 from django.conf.urls.static import static
 
+def home(request):
+    if request.user.is_authenticated:
+        return redirect('/battle/')
+    return render(request, 'landing.html')   # ← show landing page
+
 urlpatterns = [
-    path('admin/',   admin.site.urls),
-    path('auth/',    include('users.urls')),
-    path('battle/',  include('battle.urls')),
-    path('',         lambda request, *a, **kw: redirect('/battle/'), name='home'),
+    path('admin/',  admin.site.urls),
+    path('auth/',   include('users.urls')),
+    path('battle/', include('battle.urls')),
+    path('',        home, name='home'),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

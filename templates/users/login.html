@@ -2,50 +2,80 @@
 {% block title %}Login — DevDuel{% endblock %}
 
 {% block extra_style %}
-.auth-wrap{
-  min-height:calc(100vh - 52px);
-  display:flex;align-items:center;justify-content:center;padding:24px
+.auth-page {
+  min-height: calc(100vh - 54px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 24px;
 }
-.auth-card{
-  background:#1a1a2e;border:1px solid #2d2d44;border-radius:16px;
-  padding:40px;width:100%;max-width:400px
+
+.auth-card {
+  width: 100%;
+  max-width: 380px;
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--r-xl);
+  padding: 40px 36px;
+  backdrop-filter: blur(20px);
+  box-shadow: 0 0 40px rgba(139,92,246,0.08);
 }
-.auth-logo{
-  text-align:center;margin-bottom:28px
+
+.auth-title {
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  color: var(--text-1);
+  margin-bottom: 4px;
 }
-.auth-logo h1{font-size:28px;font-weight:700;color:#7c6dfa}
-.auth-logo p{color:#a0a0b8;font-size:14px;margin-top:4px}
-.form-group{margin-bottom:18px}
-.form-group label{
-  display:block;font-size:13px;font-weight:500;
-  color:#a0a0b8;margin-bottom:6px
+
+.auth-sub {
+  font-size: 14px;
+  color: var(--text-2);
+  margin-bottom: 28px;
 }
-.form-group input{
-  width:100%;background:#0f0f1a;border:1px solid #2d2d44;
-  border-radius:8px;padding:10px 14px;color:#e2e2e8;
-  font-size:14px;outline:none;transition:border-color .15s
+
+.form-group { margin-bottom: 16px; }
+
+.form-label {
+  display: block;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-2);
+  margin-bottom: 6px;
 }
-.form-group input:focus{border-color:#7c6dfa}
-.btn-full{width:100%;padding:12px;font-size:15px;font-weight:600;
-  background:#7c6dfa;color:#fff;border:none;border-radius:8px;
-  cursor:pointer;transition:background .15s}
-.btn-full:hover{background:#6c5de8}
-.auth-footer{text-align:center;margin-top:20px;font-size:13px;color:#a0a0b8}
-.auth-footer a{color:#7c6dfa;text-decoration:none}
-.auth-footer a:hover{text-decoration:underline}
-.error-msg{
-  background:#7f1d1d;border:1px solid #991b1b;color:#fca5a5;
-  padding:10px 14px;border-radius:8px;font-size:13px;margin-bottom:16px
+
+.auth-footer {
+  text-align: center;
+  margin-top: 20px;
+  font-size: 13px;
+  color: var(--text-3);
+}
+
+.auth-footer a {
+  color: var(--accent-hover);
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.auth-footer a:hover { text-decoration: underline; }
+
+.error-msg {
+  background: var(--red-soft);
+  border: 1px solid rgba(239,68,68,0.2);
+  color: #fca5a5;
+  padding: 10px 14px;
+  border-radius: var(--r-sm);
+  font-size: 13px;
+  margin-bottom: 16px;
 }
 {% endblock %}
 
 {% block content %}
-<div class="auth-wrap">
+<div class="auth-page">
   <div class="auth-card">
-    <div class="auth-logo">
-      <h1>⚔️ DevDuel</h1>
-      <p>Login to start battling</p>
-    </div>
+    <h1 class="auth-title">Welcome back</h1>
+    <p class="auth-sub">Login to your DevDuel account</p>
 
     {% for message in messages %}
       <div class="error-msg">{{ message }}</div>
@@ -56,22 +86,28 @@
       <input type="hidden" name="next" value="{{ next }}">
 
       <div class="form-group">
-        <label>Username</label>
-        <input type="text" name="username" placeholder="your username"
+        <label class="form-label">Username</label>
+        <input class="input" type="text" name="username"
+               placeholder="your username"
                autocomplete="username" autofocus required>
       </div>
 
       <div class="form-group">
-        <label>Password</label>
-        <input type="password" name="password" placeholder="••••••••"
+        <label class="form-label">Password</label>
+        <input class="input" type="password" name="password"
+               placeholder="••••••••"
                autocomplete="current-password" required>
       </div>
 
-      <button type="submit" class="btn-full">Login</button>
+      <button type="submit"
+              class="btn btn-primary btn-full"
+              style="margin-top:8px;padding:11px">
+        Login
+      </button>
     </form>
 
     <div class="auth-footer">
-      Don't have an account?
+      No account?
       <a href="/auth/register/">Create one</a>
     </div>
   </div>
