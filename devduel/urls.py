@@ -24,7 +24,7 @@ from django.conf.urls.static import static
 def home(request):
     if request.user.is_authenticated:
         return redirect('/battle/')
-    return render(request, 'landing.html')   # ← show landing page
+    return render(request, 'landing.html')   
 
 urlpatterns = [
     path('admin/',  admin.site.urls),
