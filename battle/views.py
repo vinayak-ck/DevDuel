@@ -68,6 +68,9 @@ def battle_room(request, room_id):
         Battle.objects.select_related('player_a', 'player_b', 'problem'),
         room_id=room_id
     )
+    recent_submissions = Submission.objects.filter(
+        battle=battle, player=request.user
+    ).order_by('-submitted_at')[:15]
 
     # Only block access if the battle is already over
     # AND this user wasn't part of it
@@ -84,6 +87,7 @@ def battle_room(request, room_id):
         'room_id':      room_id,
         'current_user': request.user.username,
         'problem':      battle.problem,
+        'recent_submissions': recent_submissions,
     })
 
 

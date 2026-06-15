@@ -1,371 +1,1037 @@
 {% extends "base.html" %}
-
-{% block title %}{{ battle.room_id }} — DevDuel{% endblock %}
+{% block title %}{{ battle.problem.title|default:"Battle" }} — DevDuel{% endblock %}
 
 {% block extra_style %}
+/* ══════════════ AMBIENT BACKGROUND (makes glass visible) ══════════════ */
+.battle-page {
+  position: relative;
+}
+
+.battle-page::before,
+.battle-page::after {
+  content: '';
+  position: fixed;
+  border-radius: 50%;
+  filter: blur(100px);
+  pointer-events: none;
+  z-index: -1;
+}
+
+.battle-page::before {
+  width: 500px; height: 500px;
+  background: radial-gradient(circle, rgba(139,92,246,0.18), transparent 70%);
+  top: -150px; left: -100px;
+}
+
+.battle-page::after {
+  width: 450px; height: 450px;
+  background: radial-gradient(circle, rgba(56,189,248,0.14), transparent 70%);
+  bottom: -150px; right: -100px;
+}
+
+/* ══════════════ STRONGER GLASS PANELS ══════════════ */
+.panel {
+  position: relative;
+  background: rgba(30,41,59,0.45);
+  border: 1px solid rgba(255,255,255,0.08);
+  box-shadow:
+    0 8px 32px rgba(0,0,0,0.4),
+    inset 0 1px 0 rgba(255,255,255,0.06);
+}
+
+/* top highlight edge — the classic "glass catches light" look */
+.panel::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 1px;
+  background: linear-gradient(90deg,
+    transparent,
+    rgba(255,255,255,0.15) 50%,
+    transparent);
+  z-index: 1;
+}
+
+.panel:hover {
+  border-color: rgba(139,92,246,0.25);
+  box-shadow:
+    0 8px 40px rgba(139,92,246,0.12),
+    inset 0 1px 0 rgba(255,255,255,0.08);
+}
+/* ══════════════ LAYOUT ══════════════ */
+.battle-page {
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 90px);
+  overflow: hidden;
+}
+
+.mobile-tabs {
+  display: none;
+}
+
 .battle-layout {
-  display: grid;
-  grid-template-columns: 380px 1fr;
-  height: calc(100vh - 52px);
+  flex: 1;
+  display: flex;
+  gap: 12px;
+  padding: 12px;
   overflow: hidden;
+  min-height: 0;
 }
-.problem-panel {
-  background: #1a1a2e;
-  border-right: 1px solid #2d2d44;
+
+.panel {
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--r-lg);
+  backdrop-filter: blur(24px) saturate(160%);
+  -webkit-backdrop-filter: blur(24px) saturate(160%);
+  overflow: hidden;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  min-height: 0;
+  transition: border-color 0.2s var(--ease-1);
 }
-.problem-header {
-  padding: 16px 20px;
-  border-bottom: 1px solid #2d2d44;
+
+.problem-panel { width: 300px; flex-shrink: 0; }
+.side-panel    { width: 320px; flex-shrink: 0; }
+.editor-panel  { flex: 1; min-width: 0; }
+
+.panel-scroll {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px;
 }
-.problem-title { font-size: 16px; font-weight: 700; margin-bottom: 6px; }
-.problem-body { padding: 16px 20px; overflow-y: auto; flex: 1; }
-.problem-body p { font-size: 14px; line-height: 1.7; color: #c0c0d8; }
-.problem-section { margin-top: 16px; }
-.problem-section h4 {
-  font-size: 12px; font-weight: 600; color: #7c6dfa;
-  text-transform: uppercase; letter-spacing: 0.06em;
-  margin-bottom: 8px;
+
+.panel-scroll::-webkit-scrollbar { width: 5px; }
+.panel-scroll::-webkit-scrollbar-thumb {
+  background: var(--bg-3);
+  border-radius: 99px;
 }
-.code-sample {
-  background: #0f0f1a;
-  border: 1px solid #2d2d44;
-  border-radius: 6px;
-  padding: 10px 12px;
-  font-family: 'Consolas', monospace;
-  font-size: 13px;
-  white-space: pre;
-  color: #a0f0a0;
-}
-.editor-panel {
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-.editor-toolbar {
-  background: #1a1a2e;
-  border-bottom: 1px solid #2d2d44;
-  padding: 8px 16px;
+.panel-scroll::-webkit-scrollbar-thumb:hover { background: var(--accent); }
+
+/* ══════════════ PROBLEM PANEL ══════════════ */
+.problem-title-row {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
 }
-select {
-  background: #2d2d44;
-  color: #e2e2e8;
-  border: 1px solid #3d3d58;
-  border-radius: 6px;
-  padding: 6px 10px;
-  font-size: 13px;
+
+.problem-title {
+  font-size: 19px;
+  font-weight: 700;
+  letter-spacing: -0.3px;
+  color: var(--text-1);
 }
-#editor-container { flex: 1; overflow: hidden; }
-.battle-footer {
-  background: #1a1a2e;
-  border-top: 1px solid #2d2d44;
-  padding: 10px 16px;
+
+.problem-limits {
+  display: flex;
+  gap: 14px;
+  font-size: 12px;
+  color: var(--text-3);
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--glass-border);
+}
+
+.problem-limits span { display: flex; align-items: center; gap: 4px; }
+
+.problem-section-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--accent-hover);
+  margin: 18px 0 8px;
+}
+
+.problem-section-label:first-of-type { margin-top: 0; }
+
+.problem-desc {
+  font-size: 13.5px;
+  color: var(--text-2);
+  line-height: 1.7;
+}
+
+.sample-box {
+  background: rgba(15,23,42,0.6);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--r-sm);
+  padding: 10px 14px;
+  font-family: 'SF Mono', Menlo, Consolas, monospace;
+  font-size: 12.5px;
+  color: #c4b5fd;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+/* ══════════════ BATTLE HEADER ══════════════ */
+.battle-header {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--glass-border);
   display: flex;
   align-items: center;
   gap: 16px;
 }
-.status-dot {
-  width: 8px; height: 8px;
+
+.player-block { flex: 1; min-width: 0; }
+.player-block.right { text-align: right; }
+
+.player-name-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.player-block.right .player-name-row { justify-content: flex-end; }
+
+.player-avatar {
+  width: 26px; height: 26px;
   border-radius: 50%;
-  background: #666;
+  background: var(--accent-soft);
+  border: 1px solid rgba(139,92,246,0.25);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 700;
+  color: var(--accent-hover);
   flex-shrink: 0;
 }
-.status-dot.connected { background: #22c55e; }
-.status-dot.disconnected { background: #ef4444; animation: pulse 1s infinite; }
-@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
 
-.players-bar {
-  background: #1a1a2e;
-  border-bottom: 1px solid #2d2d44;
+.player-block.right .player-avatar { order: 2; }
+
+.player-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-1);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.player-dot {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: var(--text-3);
+  flex-shrink: 0;
+  transition: background 0.2s, box-shadow 0.2s;
+}
+
+.player-dot.online {
+  background: var(--green);
+  box-shadow: 0 0 8px rgba(34,197,94,0.5);
+}
+
+.progress-track {
+  height: 5px;
+  background: rgba(15,23,42,0.6);
+  border-radius: 99px;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, var(--blue), var(--accent));
+  border-radius: 99px;
+  transition: width 0.3s var(--ease-2);
+}
+
+.player-block.right .progress-fill {
+  background: linear-gradient(90deg, var(--accent), var(--accent-hover));
+  margin-left: auto;
+}
+
+.verdict-badge {
+  display: inline-flex;
+  align-items: center;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  padding: 1px 6px;
+  border-radius: 5px;
+  margin-left: 6px;
+}
+
+.verdict-AC  { background: var(--green-soft);  color: var(--green); }
+.verdict-WA  { background: var(--red-soft);    color: var(--red); }
+.verdict-TLE { background: var(--yellow-soft); color: var(--yellow); }
+.verdict-RE  { background: var(--accent-soft); color: var(--accent-hover); }
+.verdict-CE  { background: rgba(56,189,248,0.12); color: var(--blue-hover); }
+
+.vs-badge {
+  flex-shrink: 0;
+  width: 34px; height: 34px;
+  border-radius: 50%;
+  background: var(--glass-bg-2);
+  border: 1px solid var(--glass-border);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 800;
+  color: var(--text-2);
+  letter-spacing: 0.05em;
+}
+
+/* ══════════════ EDITOR TOOLBAR ══════════════ */
+.editor-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--glass-border);
+  flex-wrap: wrap;
+}
+
+.lang-select {
+  background: var(--glass-bg-2);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--r-sm);
+  color: var(--text-1);
+  font-size: 13px;
+  font-family: inherit;
+  padding: 7px 12px;
+  outline: none;
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+.lang-select:focus { border-color: var(--accent); }
+
+.conn-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-2);
+  background: var(--glass-bg-2);
+  border: 1px solid var(--glass-border);
+  border-radius: 99px;
+  padding: 6px 12px;
+}
+
+.status-dot {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: var(--text-3);
+}
+.status-dot.connected    { background: var(--green); box-shadow: 0 0 8px rgba(34,197,94,0.5); }
+.status-dot.disconnected { background: var(--red);   box-shadow: 0 0 8px rgba(239,68,68,0.5); animation: pulse 1s infinite; }
+
+@keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.4; } }
+
+.timer-pill {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-1);
+  background: var(--glass-bg-2);
+  border: 1px solid var(--glass-border);
+  border-radius: 99px;
+  padding: 6px 14px;
+  letter-spacing: 0.02em;
+}
+
+.timer-pill.timer-warning {
+  color: var(--red);
+  border-color: rgba(239,68,68,0.3);
+  background: var(--red-soft);
+  animation: pulse 1s infinite;
+}
+
+.toolbar-spacer { flex: 1; }
+
+/* ══════════════ EDITOR ══════════════ */
+#editor-container {
+  flex: 1;
+  min-height: 0;
+}
+
+.editor-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   padding: 8px 16px;
-  display: grid;
-  grid-template-columns: 1fr auto 1fr;
+  font-size: 12px;
+  color: var(--text-3);
+  border-top: 1px solid var(--glass-border);
+}
+
+/* ══════════════ RESULTS PANEL ══════════════ */
+.results-panel {
+  border-top: 1px solid var(--glass-border);
+  padding: 0 16px;
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s var(--ease-2), padding 0.3s var(--ease-2);
+}
+
+.results-panel.show {
+  max-height: 180px;
+  padding: 14px 16px;
+  overflow-y: auto;
+}
+
+.results-head {
+  display: flex;
   align-items: center;
   gap: 12px;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
 }
-.player-info { display: flex; align-items: center; gap: 8px; }
-.player-name { font-size: 13px; font-weight: 600; }
-.progress-bar-track {
-  height: 4px;
-  background: #2d2d44;
-  border-radius: 2px;
-  margin-top: 4px;
-  width: 120px;
+
+.results-verdict {
+  font-size: 16px;
+  font-weight: 800;
+  letter-spacing: -0.2px;
 }
-.progress-bar-fill {
-  height: 100%;
-  border-radius: 2px;
-  background: #7c6dfa;
-  transition: width 0.4s ease;
-  width: 0%;
-}
-.vs-badge {
-  font-size: 12px; font-weight: 700;
-  color: #7c6dfa;
-  padding: 3px 10px;
-  background: #2d2d44;
-  border-radius: 99px;
-}
-.verdict-badge {
-  padding: 3px 10px;
-  border-radius: 99px;
+
+.results-meta {
   font-size: 12px;
-  font-weight: 700;
+  color: var(--text-2);
+}
+
+.results-stderr {
+  background: rgba(15,23,42,0.7);
+  border: 1px solid var(--red-soft);
+  border-radius: var(--r-sm);
+  padding: 10px 12px;
+  font-family: 'SF Mono', Menlo, Consolas, monospace;
+  font-size: 11.5px;
+  color: #fca5a5;
+  white-space: pre-wrap;
+  word-break: break-all;
   display: none;
 }
-.verdict-AC  { background: #14532d; color: #4ade80; display:inline-block; }
-.verdict-WA  { background: #7f1d1d; color: #f87171; display:inline-block; }
-.verdict-TLE { background: #713f12; color: #fbbf24; display:inline-block; }
-.verdict-RE  { background: #4a1d96; color: #c4b5fd; display:inline-block; }
-.verdict-CE  { background: #1e3a5f; color: #93c5fd; display:inline-block; }
-.verdict-JUDGING { background: #1a1a2e; color: #a0a0b8; display:inline-block; }
-.waiting-overlay {
+
+/* ══════════════ SIDE PANEL ══════════════ */
+.side-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--glass-border);
+}
+
+.stab {
+  flex: 1;
+  padding: 12px;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-3);
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+  position: relative;
+  transition: color 0.15s;
+}
+
+.stab.active { color: var(--text-1); }
+
+.stab.active::after {
+  content: '';
   position: absolute;
-  top: 0; left: 0; right: 0; bottom: 0;
-  background: rgba(15,15,26,0.9);
+  bottom: -1px; left: 12px; right: 12px;
+  height: 2px;
+  background: linear-gradient(90deg, var(--blue), var(--accent));
+  border-radius: 2px;
+}
+
+.stab.has-unread::before {
+  content: '';
+  position: absolute;
+  top: 8px; right: 18px;
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: var(--red);
+}
+
+.side-content { display: none; flex: 1; flex-direction: column; min-height: 0; }
+.side-content.active { display: flex; }
+
+/* ── Chat ── */
+.chat-messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.chat-msg {
+  display: flex;
+  gap: 8px;
+  max-width: 88%;
+}
+
+.chat-msg.own {
+  align-self: flex-end;
+  flex-direction: row-reverse;
+}
+
+.chat-avatar {
+  width: 24px; height: 24px;
+  border-radius: 50%;
+  background: var(--glass-bg-2);
+  border: 1px solid var(--glass-border);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 10px; font-weight: 700;
+  color: var(--text-2);
+  flex-shrink: 0;
+}
+
+.chat-bubble-wrap { min-width: 0; }
+
+.chat-author {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-3);
+  margin-bottom: 3px;
+}
+
+.chat-msg.own .chat-bubble-wrap { text-align: right; }
+
+.chat-bubble {
+  background: var(--glass-bg-2);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--r-sm);
+  padding: 8px 12px;
+  font-size: 13px;
+  color: var(--text-1);
+  line-height: 1.5;
+  word-break: break-word;
+  display: inline-block;
+  text-align: left;
+}
+
+.chat-msg.own .chat-bubble {
+  background: var(--accent-soft);
+  border-color: rgba(139,92,246,0.25);
+}
+
+.chat-msg.system .chat-bubble {
+  background: transparent;
+  border: none;
+  color: var(--text-3);
+  font-size: 12px;
+  font-style: italic;
+  padding: 2px 0;
+}
+
+.chat-empty {
+  flex: 1;
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 100;
-}
-.waiting-box {
-  background: #1a1a2e;
-  border: 1px solid #2d2d44;
-  border-radius: 16px;
-  padding: 40px 48px;
   text-align: center;
-  max-width: 360px;
-}
-.waiting-box h2 { font-size: 22px; margin-bottom: 8px; }
-.waiting-box p  { color: #a0a0b8; font-size: 14px; margin-bottom: 20px; }
-.room-link {
-  background: #0f0f1a;
-  border: 1px solid #2d2d44;
-  border-radius: 6px;
-  padding: 8px 12px;
-  font-family: monospace;
+  color: var(--text-3);
   font-size: 13px;
-  color: #7c6dfa;
+  padding: 20px;
+}
+
+.chat-input-row {
+  display: flex;
+  gap: 8px;
+  padding: 12px;
+  border-top: 1px solid var(--glass-border);
+}
+
+.chat-input {
+  flex: 1;
+  background: rgba(15,23,42,0.6);
+  border: 1px solid var(--glass-border);
+  border-radius: 99px;
+  padding: 9px 16px;
+  color: var(--text-1);
+  font-size: 13px;
+  font-family: inherit;
+  outline: none;
+  transition: border-color 0.15s;
+}
+.chat-input:focus { border-color: var(--accent); }
+
+.chat-send {
+  width: 38px; height: 38px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  font-size: 15px;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+  transition: background 0.15s, transform 0.15s;
+}
+.chat-send:hover { background: var(--accent-hover); transform: translateY(-1px); }
+
+/* ── History ── */
+.history-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.history-item {
+  background: var(--glass-bg-2);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--r-sm);
+  padding: 10px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 12px;
+  animation: fadeUp 0.3s var(--ease-2) both;
+}
+
+.history-left { display: flex; align-items: center; gap: 8px; min-width: 0; }
+
+.history-verdict {
+  font-size: 11px;
+  font-weight: 800;
+  padding: 2px 8px;
+  border-radius: 5px;
+  flex-shrink: 0;
+}
+
+.history-lang {
+  color: var(--text-2);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.history-meta {
+  color: var(--text-3);
+  font-size: 11px;
+  text-align: right;
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.history-empty {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  color: var(--text-3);
+  font-size: 13px;
+  padding: 20px;
+}
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ══════════════ WAITING OVERLAY ══════════════ */
+.waiting-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15,23,42,0.7);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+}
+
+.waiting-card {
+  background: var(--glass-bg-2);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--r-xl);
+  padding: 40px;
+  text-align: center;
+  max-width: 420px;
+  width: 90%;
+  backdrop-filter: blur(24px);
+  box-shadow: 0 0 60px rgba(139,92,246,0.15);
+}
+
+.spinner {
+  width: 40px; height: 40px;
+  border: 3px solid var(--glass-border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  margin: 0 auto 20px;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.waiting-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-1);
+  margin-bottom: 8px;
+}
+
+.waiting-sub {
+  font-size: 13px;
+  color: var(--text-2);
+  margin-bottom: 16px;
+}
+
+.room-link {
+  background: rgba(15,23,42,0.6);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--r-sm);
+  padding: 10px 14px;
+  font-family: 'SF Mono', Menlo, Consolas, monospace;
+  font-size: 12px;
+  color: var(--accent-hover);
   word-break: break-all;
   margin-bottom: 16px;
 }
-.spinner {
-  width: 32px; height: 32px;
-  border: 3px solid #2d2d44;
-  border-top-color: #7c6dfa;
-  border-radius: 50%;
-  animation: spin 0.8s linear infinite;
-  margin: 0 auto 16px;
-}
-@keyframes spin { to { transform: rotate(360deg); } }
 
-.battle-over-modal {
+/* ══════════════ RECONNECT BANNER ══════════════ */
+.reconnect-banner {
   display: none;
+  background: var(--red-soft);
+  border-bottom: 1px solid rgba(239,68,68,0.25);
+  color: #fca5a5;
+  font-size: 12px;
+  font-weight: 500;
+  text-align: center;
+  padding: 6px;
+}
+
+/* ══════════════ BATTLE OVER MODAL ══════════════ */
+.battle-over-modal {
   position: fixed;
-  top: 0; left: 0; right: 0; bottom: 0;
-  background: rgba(0,0,0,0.8);
-  z-index: 200;
+  inset: 0;
+  background: rgba(15,23,42,0.75);
+  backdrop-filter: blur(10px);
+  display: flex;
   align-items: center;
   justify-content: center;
+  z-index: 300;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s var(--ease-2);
 }
-.battle-over-modal.show { display: flex; }
-.modal-box {
-  background: #1a1a2e;
-  border: 1px solid #2d2d44;
-  border-radius: 16px;
-  padding: 40px;
+
+.battle-over-modal.show {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.modal-card {
+  background: var(--glass-bg-2);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--r-xl);
+  padding: 44px;
   text-align: center;
-  min-width: 320px;
+  max-width: 420px;
+  width: 90%;
+  backdrop-filter: blur(24px);
+  transform: scale(0.92);
+  transition: transform 0.3s var(--ease-2);
+  box-shadow: 0 0 80px rgba(139,92,246,0.2);
 }
-.modal-box h2 { font-size: 24px; margin-bottom: 8px; }
-.modal-box p  { color: #a0a0b8; margin-bottom: 24px; }
+
+.battle-over-modal.show .modal-card { transform: scale(1); }
+
+.modal-title {
+  font-size: 26px;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  margin-bottom: 10px;
+}
+
+.modal-desc {
+  font-size: 14px;
+  color: var(--text-2);
+  margin-bottom: 24px;
+  line-height: 1.6;
+}
+
+.modal-rating {
+  background: rgba(15,23,42,0.6);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--r-lg);
+  padding: 16px;
+  margin-bottom: 24px;
+}
+
+.modal-actions { display: flex; gap: 10px; }
+.modal-actions .btn { flex: 1; justify-content: center; }
+
+/* ══════════════ MOBILE ══════════════ */
+@media (max-width: 900px) {
+  .mobile-tabs {
+    display: flex;
+    border-bottom: 1px solid var(--glass-border);
+    background: rgba(15,23,42,0.6);
+    flex-shrink: 0;
+  }
+
+  .mtab {
+    flex: 1;
+    padding: 12px;
+    text-align: center;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-3);
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-family: inherit;
+    position: relative;
+    transition: color 0.15s;
+  }
+
+  .mtab.active { color: var(--text-1); }
+
+  .mtab.active::after {
+    content: '';
+    position: absolute;
+    bottom: -1px; left: 16px; right: 16px;
+    height: 2px;
+    background: linear-gradient(90deg, var(--blue), var(--accent));
+  }
+
+  .battle-layout {
+    flex-direction: column;
+    padding: 8px;
+    gap: 0;
+  }
+
+  .panel {
+    display: none;
+    width: 100% !important;
+    flex: none;
+    border-radius: var(--r-lg);
+  }
+
+  .panel.mobile-active {
+    display: flex;
+    flex: 1;
+    min-height: 0;
+  }
+
+  .battle-header { flex-wrap: wrap; }
+  .vs-badge { order: 3; width: 100%; border-radius: var(--r-sm); height: 24px; margin-top: 8px; }
+}
 {% endblock %}
 
 {% block content %}
+<div class="battle-page">
 
-<!-- data island — JS reads room info from here -->
-<div id="room-data"
-     data-room-id="{{ room_id }}"
-     data-current-user="{{ current_user }}"
-     data-battle-status="{{ battle.status }}"
-     style="display:none">
+  <div class="reconnect-banner" id="reconnect-banner">
+    Connection lost. Reconnecting...
+  </div>
+
+  <!-- hidden room metadata -->
+  <div id="room-data"
+       data-room-id="{{ room_id }}"
+       data-current-user="{{ user.username|escapejs }}"
+       style="display:none"></div>
+
+  <!-- mobile tabs -->
+  <div class="mobile-tabs">
+    <button class="mtab" data-tab="problem">📋 Problem</button>
+    <button class="mtab active" data-tab="editor">⚔️ Battle</button>
+    <button class="mtab" data-tab="side">💬 Activity</button>
+  </div>
+
+  <div class="battle-layout">
+
+    <!-- ═══ PROBLEM PANEL ═══ -->
+    <aside class="panel problem-panel" id="panelProblem">
+      <div class="panel-scroll">
+        <div class="problem-title-row">
+          <div class="problem-title">{{ battle.problem.title|default:"Problem" }}</div>
+          {% if battle.problem %}
+            <span class="badge badge-{{ battle.problem.difficulty }}">
+              {{ battle.problem.get_difficulty_display }}
+            </span>
+          {% endif %}
+        </div>
+
+        <div class="problem-limits">
+          <span>⏱ {{ battle.problem.time_limit_seconds|default:"5.0" }}s</span>
+          <span>💾 {{ battle.problem.memory_limit_mb|default:"256" }}MB</span>
+        </div>
+
+        <div class="problem-desc">{{ battle.problem.description|default:"No description."|linebreaksbr }}</div>
+
+        {% if battle.problem.input_format %}
+          <div class="problem-section-label">Input Format</div>
+          <div class="problem-desc">{{ battle.problem.input_format|linebreaksbr }}</div>
+        {% endif %}
+
+        {% if battle.problem.output_format %}
+          <div class="problem-section-label">Output Format</div>
+          <div class="problem-desc">{{ battle.problem.output_format|linebreaksbr }}</div>
+        {% endif %}
+
+        {% if battle.problem.sample_input %}
+          <div class="problem-section-label">Sample Input</div>
+          <div class="sample-box">{{ battle.problem.sample_input }}</div>
+        {% endif %}
+
+        {% if battle.problem.sample_output %}
+          <div class="problem-section-label">Sample Output</div>
+          <div class="sample-box">{{ battle.problem.sample_output }}</div>
+        {% endif %}
+      </div>
+    </aside>
+
+    <!-- ═══ EDITOR PANEL ═══ -->
+    <main class="panel editor-panel" id="panelEditor">
+
+      <!-- battle header -->
+      <div class="battle-header">
+        <div class="player-block" id="blockA">
+          <div class="player-name-row">
+            <div class="player-avatar">{{ battle.player_a.username|slice:":1"|upper|default:"?" }}</div>
+            <div class="player-name">{{ battle.player_a.username|default:"Waiting..." }}</div>
+            <span class="player-dot" id="dotA"></span>
+            <span class="verdict-badge" id="verdictA" style="display:none"></span>
+          </div>
+          <div class="progress-track"><div class="progress-fill" id="progressA"></div></div>
+        </div>
+
+        <div class="vs-badge">VS</div>
+
+        <div class="player-block right" id="blockB">
+          <div class="player-name-row">
+            <span class="verdict-badge" id="verdictB" style="display:none"></span>
+            <span class="player-dot" id="dotB"></span>
+            <div class="player-name">{{ battle.player_b.username|default:"Waiting..." }}</div>
+            <div class="player-avatar">{{ battle.player_b.username|slice:":1"|upper|default:"?" }}</div>
+          </div>
+          <div class="progress-track"><div class="progress-fill" id="progressB"></div></div>
+        </div>
+      </div>
+
+      <!-- toolbar -->
+      <div class="editor-toolbar">
+        <select class="lang-select" id="languageSelect">
+          <option value="python">Python 3</option>
+          <option value="cpp">C++ 17</option>
+          <option value="java">Java 17</option>
+        </select>
+
+        <div class="conn-status">
+          <span class="status-dot" id="statusDot"></span>
+          <span id="statusLabel">Connecting...</span>
+        </div>
+
+        <div class="timer-pill" id="timerPill">
+          <span>⏱</span><span id="timerDisplay">--:--</span>
+        </div>
+
+        <div class="toolbar-spacer"></div>
+
+        <button class="btn btn-primary" id="btnSubmit" onclick="submitCode()">
+          Submit (Ctrl+Enter)
+        </button>
+      </div>
+
+      <!-- editor -->
+      <div id="editor-container"></div>
+
+      <!-- results -->
+      <div class="results-panel" id="resultsPanel">
+        <div class="results-head">
+          <span class="results-verdict" id="rpVerdict"></span>
+          <span class="results-meta" id="rpTime"></span>
+          <span class="results-meta" id="rpTests"></span>
+        </div>
+        <div class="results-stderr" id="rpStderr"></div>
+      </div>
+
+      <!-- footer -->
+      <div class="editor-footer">
+        <span id="cursorPosition">Line 1, Col 1</span>
+        <span id="submissionStatus"></span>
+      </div>
+    </main>
+
+    <!-- ═══ SIDE PANEL ═══ -->
+    <aside class="panel side-panel" id="panelSide">
+      <div class="side-tabs">
+        <button class="stab active" data-stab="chat" onclick="setSideTab(this,'chat')">💬 Chat</button>
+        <button class="stab" data-stab="history" onclick="setSideTab(this,'history')">📜 History</button>
+      </div>
+
+      <!-- chat -->
+      <div class="side-content active" data-scontent="chat">
+        <div class="chat-messages" id="chatMessages">
+          <div class="chat-empty" id="chatEmpty">
+            No messages yet.<br>Say hi to your opponent 👋
+          </div>
+        </div>
+        <div class="chat-input-row">
+          <input class="chat-input" id="chatInput" type="text"
+                 placeholder="Type a message..." maxlength="500">
+          <button class="chat-send" onclick="sendChat()">➤</button>
+        </div>
+      </div>
+
+      <!-- history -->
+      <div class="side-content" data-scontent="history">
+        <div class="history-list" id="historyList">
+          {% for sub in recent_submissions %}
+            <div class="history-item">
+              <div class="history-left">
+                <span class="history-verdict verdict-{{ sub.verdict|default:'CE' }}">
+                  {{ sub.verdict|default:"—" }}
+                </span>
+                <span class="history-lang">{{ sub.language }}</span>
+              </div>
+              <div class="history-meta">
+                {% if sub.time_ms %}{{ sub.time_ms|floatformat:0 }}ms ·{% endif %}
+                {{ sub.test_cases_passed }}/{{ sub.total_test_cases }}
+              </div>
+            </div>
+          {% endfor %}
+        </div>
+        {% if not recent_submissions %}
+          <div class="history-empty" id="historyEmpty">
+            No submissions yet.<br>Submit your first solution!
+          </div>
+        {% endif %}
+      </div>
+    </aside>
+
+  </div>
 </div>
 
-<!-- Waiting for opponent overlay -->
-{% if battle.status == 'waiting' and battle.player_a.username == current_user %}
-<div class="waiting-overlay" id="waitingOverlay">
-  <div class="waiting-box">
+<!-- waiting overlay -->
+<div class="waiting-overlay" id="waitingOverlay" {% if battle.status != 'waiting' %}style="display:none"{% endif %}>
+  <div class="waiting-card">
     <div class="spinner"></div>
-    <h2>Waiting for opponent...</h2>
-    <p>Share this link with your opponent:</p>
+    <div class="waiting-title">Waiting for opponent...</div>
+    <div class="waiting-sub">Share this link to invite someone directly:</div>
     <div class="room-link" id="roomLink">
       {% if request.is_secure %}https{% else %}http{% endif %}://{{ request.get_host }}{% url 'battle_room' room_id=room_id %}
     </div>
     <button class="btn btn-secondary" onclick="copyRoomLink()">Copy Link</button>
   </div>
 </div>
-{% endif %}
 
-<!-- Submission results panel -->
-<div id="resultsPanel" style="display:none;position:fixed;bottom:60px;right:16px;
-     width:320px;background:#1a1a2e;border:1px solid #2d2d44;border-radius:12px;
-     z-index:150;overflow:hidden;box-shadow:0 8px 32px rgba(0,0,0,0.4)">
-  <div style="padding:10px 14px;border-bottom:1px solid #2d2d44;
-              display:flex;justify-content:space-between;align-items:center">
-    <span style="font-size:13px;font-weight:600">Submission Result</span>
-    <button onclick="document.getElementById('resultsPanel').style.display='none'"
-            style="background:none;border:none;color:#a0a0b8;cursor:pointer;font-size:16px">✕</button>
-  </div>
-  <div style="padding:12px 14px">
-    <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
-      <span id="rpVerdict" style="font-size:20px;font-weight:700"></span>
-      <span id="rpTime"    style="font-size:12px;color:#a0a0b8"></span>
-    </div>
-    <div id="rpTests" style="font-size:12px;color:#a0a0b8;margin-bottom:8px"></div>
-    <div id="rpStderr" style="display:none;background:#0f0f1a;border-radius:6px;
-         padding:8px;font-family:monospace;font-size:11px;color:#f87171;
-         max-height:80px;overflow-y:auto;white-space:pre-wrap"></div>
-  </div>
-</div>
-
-<!-- Battle over modal -->
+<!-- battle over modal -->
 <div class="battle-over-modal" id="battleOverModal">
-  <div class="modal-box">
-    <h2 id="modalTitle">⚔️ Battle Over!</h2>
-    <p id="modalDesc">Loading...</p>
-    <div id="modalRatingChange" style="margin:12px 0;font-size:14px;color:#a0a0b8"></div>
-    <a href="/battle/" class="btn btn-primary">Back to Lobby</a>
-  </div>
-</div>
-
-<div class="battle-layout" style="position:relative">
-
-  <!-- Left panel: problem -->
-  <div class="problem-panel">
-    <div class="problem-header">
-      {% if problem %}
-        <div class="problem-title">
-          {{ problem.title }}
-          <span class="badge badge-{{ problem.difficulty }}">
-            {{ problem.get_difficulty_display }}
-          </span>
-        </div>
-        <div style="font-size:12px;color:#a0a0b8;margin-top:4px">
-          ⏱ {{ problem.time_limit_seconds }}s &nbsp;|&nbsp;
-          💾 {{ problem.memory_limit_mb }}MB
-        </div>
-      {% else %}
-        <div class="problem-title">Loading problem...</div>
-      {% endif %}
+  <div class="modal-card">
+    <div class="modal-title" id="modalTitle"></div>
+    <div class="modal-desc" id="modalDesc"></div>
+    <div class="modal-rating" id="modalRatingChange"></div>
+    <div class="modal-actions">
+      <a href="/battle/" class="btn btn-secondary">Lobby</a>
+      <a href="/battle/find/" class="btn btn-primary">Next Battle</a>
     </div>
-
-    <div class="problem-body">
-      {% if problem %}
-        <p>{{ problem.description }}</p>
-
-        {% if problem.input_format %}
-        <div class="problem-section">
-          <h4>Input Format</h4>
-          <p>{{ problem.input_format }}</p>
-        </div>
-        {% endif %}
-
-        {% if problem.output_format %}
-        <div class="problem-section">
-          <h4>Output Format</h4>
-          <p>{{ problem.output_format }}</p>
-        </div>
-        {% endif %}
-
-        {% if problem.sample_input %}
-        <div class="problem-section">
-          <h4>Sample Input</h4>
-          <div class="code-sample">{{ problem.sample_input }}</div>
-        </div>
-        {% endif %}
-
-        {% if problem.sample_output %}
-        <div class="problem-section">
-          <h4>Sample Output</h4>
-          <div class="code-sample">{{ problem.sample_output }}</div>
-        </div>
-        {% endif %}
-      {% else %}
-        <p style="color:#a0a0b8">Waiting for problem to load...</p>
-      {% endif %}
-    </div>
-  </div>
-
-  <!-- Right panel: editor -->
-  <div class="editor-panel">
-
-    <!-- Players bar -->
-    <div class="players-bar">
-      <div class="player-info">
-        <div>
-          <div class="player-name">🧑 {{ battle.player_a.username|default:"Player A" }}</div>
-          <div class="progress-bar-track">
-            <div class="progress-bar-fill" id="progressA"></div>
-          </div>
-        </div>
-        <span class="verdict-badge" id="verdictA"></span>
-      </div>
-
-      <div class="vs-badge">VS</div>
-
-      <div class="player-info" style="justify-content:flex-end">
-        <span class="verdict-badge" id="verdictB"></span>
-        <div style="text-align:right">
-          <div class="player-name">
-            {{ battle.player_b.username|default:"Waiting..." }} 🧑
-          </div>
-          <div class="progress-bar-track" style="margin-left:auto">
-            <div class="progress-bar-fill" id="progressB"
-                 style="background:#f59e0b"></div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Toolbar -->
-    <div class="editor-toolbar">
-      <select id="languageSelect">
-        <option value="python">Python 3</option>
-        <option value="cpp">C++ 17</option>
-        <option value="java">Java 17</option>
-      </select>
-      <div style="flex:1"></div>
-      <div style="display:flex;align-items:center;gap:8px;font-size:13px;color:#a0a0b8">
-        <div class="status-dot disconnected" id="statusDot"></div>
-        <span id="statusLabel">Connecting...</span>
-      </div>
-      <button class="btn btn-success" id="btnSubmit" onclick="submitCode()">
-        Submit (Ctrl+Enter)
-      </button>
-    </div>
-
-    <!-- Monaco Editor -->
-    <div id="editor-container"></div>
-
-    <!-- Footer -->
-    <div class="battle-footer">
-      <span style="font-size:12px;color:#a0a0b8" id="cursorPosition">
-        Line 1, Col 1
-      </span>
-      <span id="submissionStatus" style="font-size:12px;color:#a0a0b8"></span>
-    </div>
-
   </div>
 </div>
 {% endblock %}
 
 {% block scripts %}
-<!-- Monaco Editor -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs/loader.min.js"></script>
 
 <script>
@@ -373,9 +1039,11 @@ select {
 const roomData     = document.getElementById('room-data').dataset;
 const ROOM_ID      = roomData.roomId;
 const CURRENT_USER = roomData.currentUser;
-const PLAYER_A     = '{{ battle.player_a.username|default:"" }}';
+const PLAYER_A     = "{{ battle.player_a.username|default:''|escapejs }}";
+const TIME_LIMIT_SECONDS = {{ battle.time_limit_minutes|default:30 }} * 60;
+const BATTLE_STARTED_AT  = "{{ battle.started_at|date:'c'|default:'' }}";
+const INITIAL_STATUS     = "{{ battle.status|default:'waiting' }}";
 
-// ── language templates ──
 const TEMPLATES = {
   python: `# Read input with: input()\n# Print output with: print()\n\ndef solve():\n    pass\n\nsolve()\n`,
   cpp: `#include <bits/stdc++.h>\nusing namespace std;\n\nint main() {\n    ios_base::sync_with_stdio(false);\n    cin.tie(NULL);\n\n    return 0;\n}\n`,
@@ -390,8 +1058,11 @@ let reconnectTimer  = null;
 let reconnectAttempts = 0;
 let manuallyClosed  = false;
 let debounceTimer   = null;
+let battleStatePoll = null;
+let timerInterval   = null;
+let timerEndAt      = null;
 
-// ── UI helpers — defined BEFORE connectWS ──
+// ══════════════ UI HELPERS ══════════════
 function setStatus(state, label) {
     const dot = document.getElementById('statusDot');
     const lbl = document.getElementById('statusLabel');
@@ -400,7 +1071,6 @@ function setStatus(state, label) {
 }
 
 function showReconnectBanner(msg) {
-    // optional — only shows if element exists
     const el = document.getElementById('reconnect-banner');
     if (el) { el.textContent = msg; el.style.display = 'block'; }
 }
@@ -416,41 +1086,124 @@ function sendWS(type, payload={}) {
     }
 }
 
-// ── WebSocket ──
+function setDot(playerKey, online) {
+    const dot = document.getElementById(playerKey === 'a' ? 'dotA' : 'dotB');
+    if (dot) dot.classList.toggle('online', online);
+}
+
+// ══════════════ MOBILE TABS ══════════════
+document.querySelectorAll('.mtab').forEach(btn => {
+    btn.addEventListener('click', () => {
+        document.querySelectorAll('.mtab').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+
+        const target = btn.dataset.tab;
+        document.getElementById('panelProblem').classList.toggle('mobile-active', target === 'problem');
+        document.getElementById('panelEditor').classList.toggle('mobile-active', target === 'editor');
+        document.getElementById('panelSide').classList.toggle('mobile-active', target === 'side');
+
+        if (target === 'side') clearUnread();
+        if (editor) setTimeout(() => editor.layout(), 50);
+    });
+});
+
+// set initial mobile-active state
+document.getElementById('panelEditor').classList.add('mobile-active');
+
+// ══════════════ SIDE TABS (Chat / History) ══════════════
+function setSideTab(btn, tab) {
+    document.querySelectorAll('.stab').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.side-content').forEach(c => c.classList.remove('active'));
+    btn.classList.add('active');
+    document.querySelector(`.side-content[data-scontent="${tab}"]`).classList.add('active');
+    if (tab === 'chat') clearUnread();
+}
+
+function clearUnread() {
+    const chatTab = document.querySelector('.stab[data-stab="chat"]');
+    if (chatTab) chatTab.classList.remove('has-unread');
+}
+
+// ══════════════ TIMER ══════════════
+function startTimerFromNow() {
+    if (timerEndAt) return;
+    timerEndAt = Date.now() + TIME_LIMIT_SECONDS * 1000;
+    runTimerLoop();
+}
+
+function startTimerFromTimestamp(isoString) {
+    if (timerEndAt || !isoString) return;
+    timerEndAt = new Date(isoString).getTime() + TIME_LIMIT_SECONDS * 1000;
+    runTimerLoop();
+}
+
+function runTimerLoop() {
+    clearInterval(timerInterval);
+    timerInterval = setInterval(updateTimerDisplay, 1000);
+    updateTimerDisplay();
+}
+
+function updateTimerDisplay() {
+    const display = document.getElementById('timerDisplay');
+    const pill     = document.getElementById('timerPill');
+    if (!display || !timerEndAt) return;
+
+    const remaining = Math.max(0, Math.floor((timerEndAt - Date.now()) / 1000));
+    const mins = Math.floor(remaining / 60);
+    const secs = remaining % 60;
+    display.textContent = `${mins}:${secs.toString().padStart(2, '0')}`;
+
+    if (remaining <= 60) pill.classList.add('timer-warning');
+    if (remaining <= 0) {
+        clearInterval(timerInterval);
+        display.textContent = "0:00";
+    }
+}
+
+function stopTimer(label) {
+    clearInterval(timerInterval);
+    const display = document.getElementById('timerDisplay');
+    const pill     = document.getElementById('timerPill');
+    if (display) display.textContent = label;
+    if (pill) pill.classList.remove('timer-warning');
+}
+
+if (INITIAL_STATUS === 'active' && BATTLE_STARTED_AT) {
+    startTimerFromTimestamp(BATTLE_STARTED_AT);
+} else if (INITIAL_STATUS === 'finished') {
+    stopTimer('Done');
+}
+
+// ══════════════ WEBSOCKET ══════════════
 function connectWS() {
-    // force wss:// on Railway, ws:// on localhost
     const isLocal = ['127.0.0.1', 'localhost'].includes(window.location.hostname);
     const proto   = isLocal ? 'ws:' : 'wss:';
     const url     = `${proto}//${window.location.host}/ws/battle/${ROOM_ID}/`;
-    let battleStatePoll = null;
 
     ws = new WebSocket(url);
 
     ws.onopen = () => {
-        // ping first
         clearInterval(pingInterval);
         pingInterval = setInterval(() => {
             if (ws && ws.readyState === WebSocket.OPEN) {
                 ws.send(JSON.stringify({ type: 'ping' }));
             }
         }, 15000);
-      
+
         reconnectAttempts = 0;
         clearTimeout(reconnectTimer);
         setStatus('connected', 'Connected');
         hideReconnectBanner();
-      
-        // ── HTTP poll every 5s as fallback for creator waiting ──
-        // Handles case where Redis group_send fails to deliver player_event
+
         clearInterval(battleStatePoll);
         battleStatePoll = setInterval(async () => {
             try {
                 const resp = await fetch(`/battle/api/status/${ROOM_ID}/`);
                 const data = await resp.json();
                 if (data.status === 'active') {
-                    // battle started — dismiss overlay even if WS message was missed
                     const overlay = document.getElementById('waitingOverlay');
                     if (overlay) overlay.style.display = 'none';
+                    startTimerFromNow();
                     clearInterval(battleStatePoll);
                 }
             } catch(e) {}
@@ -464,7 +1217,7 @@ function connectWS() {
         routeMessage(data);
     };
 
-    ws.onclose = (event) => {
+    ws.onclose = () => {
         clearInterval(pingInterval);
         clearInterval(battleStatePoll);
         setStatus('disconnected', 'Reconnecting...');
@@ -472,9 +1225,7 @@ function connectWS() {
         if (!manuallyClosed) scheduleReconnect();
     };
 
-    ws.onerror = () => {
-        clearInterval(pingInterval);
-    };
+    ws.onerror = () => clearInterval(pingInterval);
 }
 
 function scheduleReconnect() {
@@ -483,7 +1234,7 @@ function scheduleReconnect() {
     reconnectTimer = setTimeout(connectWS, delay);
 }
 
-// ── message router ──
+// ══════════════ MESSAGE ROUTER ══════════════
 function routeMessage(data) {
     switch(data.type) {
         case 'battle_state':    onBattleState(data);    break;
@@ -491,26 +1242,43 @@ function routeMessage(data) {
         case 'progress_update': onProgressUpdate(data); break;
         case 'verdict_event':   onVerdictEvent(data);   break;
         case 'battle_over':     onBattleOver(data);     break;
-        case 'pong':            break; // ping response — do nothing
+        case 'chat_message':    onChatMessage(data);    break;
+        case 'pong':            break;
         case 'error':           showToast('⚠️ ' + data.message); break;
     }
 }
 
-// ── handlers ──
 function onBattleState(data) {
     if (data.status === 'active') {
         const overlay = document.getElementById('waitingOverlay');
         if (overlay) overlay.style.display = 'none';
+        startTimerFromNow();
+        if (data.player_a === CURRENT_USER || data.player_b === CURRENT_USER) {
+            setDot('a', true);
+            if (data.player_b) setDot('b', true);
+        }
     }
 }
 
 function onPlayerEvent(data) {
-    if (data.event === 'connected' && data.player !== CURRENT_USER) {
-        showToast(`⚔️ ${data.player} joined the battle!`);
-        const overlay = document.getElementById('waitingOverlay');
-        if (overlay) overlay.style.display = 'none';
-    } else if (data.event === 'disconnected' && data.player !== CURRENT_USER) {
-        showToast(`${data.player} disconnected`);
+    if (data.event === 'connected') {
+        const isA = data.player === PLAYER_A;
+        setDot(isA ? 'a' : 'b', true);
+
+        if (data.player !== CURRENT_USER) {
+            showToast(`⚔️ ${data.player} joined the battle!`);
+            const overlay = document.getElementById('waitingOverlay');
+            if (overlay) overlay.style.display = 'none';
+            startTimerFromNow();
+        }
+        addSystemChatMsg(`${data.player} joined the battle`);
+    } else if (data.event === 'disconnected') {
+        const isA = data.player === PLAYER_A;
+        setDot(isA ? 'a' : 'b', false);
+        if (data.player !== CURRENT_USER) {
+            showToast(`${data.player} disconnected`);
+            addSystemChatMsg(`${data.player} disconnected`);
+        }
     }
 }
 
@@ -522,15 +1290,22 @@ function onProgressUpdate(data) {
 }
 
 function onVerdictEvent(data) {
-    if (data.verdict === 'JUDGING') return;
+    if (data.verdict === 'JUDGING') {
+        if (data.player === CURRENT_USER) {
+            const statusEl = document.getElementById('submissionStatus');
+            if (statusEl) statusEl.textContent = 'Judging...';
+        }
+        return;
+    }
 
-    const isMe  = data.player === CURRENT_USER;
-    const isA   = data.player === PLAYER_A;
+    const isMe = data.player === CURRENT_USER;
+    const isA  = data.player === PLAYER_A;
     const badge = document.getElementById(isA ? 'verdictA' : 'verdictB');
 
     if (badge) {
         badge.className   = `verdict-badge verdict-${data.verdict}`;
         badge.textContent = data.verdict;
+        badge.style.display = 'inline-flex';
     }
 
     if (isMe) {
@@ -541,11 +1316,12 @@ function onVerdictEvent(data) {
         if (statusEl) statusEl.textContent = '';
 
         showResultsPanel(data);
+        addHistoryItem(data);
 
         if (data.verdict === 'AC') {
             showToast('🎉 Accepted! You solved it!', 5000);
         } else {
-            showToast(`❌ ${data.verdict} — check the results panel`, 4000);
+            showToast(`❌ ${data.verdict} — check results`, 4000);
         }
     }
 }
@@ -562,46 +1338,135 @@ function onBattleOver(data) {
         ? `You beat ${data.loser}! Great solve.`
         : `${data.winner} solved it first. Better luck next time!`;
 
-    if (ratingEl && data.rating_changes) {
+    if (ratingEl && data.rating_changes && data.rating_changes.player_a) {
         const rc   = data.rating_changes;
         const me   = CURRENT_USER === rc.player_a.username ? rc.player_a : rc.player_b;
         const sign = me.change >= 0 ? '+' : '';
-        const col  = me.change >= 0 ? '#4ade80' : '#f87171';
+        const col  = me.change >= 0 ? 'var(--green)' : 'var(--red)';
         ratingEl.innerHTML = `
-            <span style="color:${col};font-size:20px;font-weight:700">${sign}${me.change}</span>
-            <span style="color:#a0a0b8;font-size:13px">&nbsp;rating (${me.old_rating} → ${me.new_rating})</span>`;
+            <span style="color:${col};font-size:22px;font-weight:800">${sign}${me.change}</span>
+            <span style="color:var(--text-2);font-size:13px">&nbsp;rating (${me.old_rating} → ${me.new_rating})</span>`;
     }
 
     if (modal) modal.classList.add('show');
+    stopTimer(isWinner ? 'Won!' : 'Done');
     manuallyClosed = true;
     clearInterval(pingInterval);
     if (ws) ws.close(1000);
 }
 
-function showResultsPanel(data) {
-    const panel = document.getElementById('resultsPanel');
-    if (!panel) return;
-    const colors = { AC:'#4ade80', WA:'#f87171', TLE:'#fbbf24', RE:'#c4b5fd', CE:'#93c5fd' };
-    const rv = document.getElementById('rpVerdict');
-    if (rv) { rv.textContent = data.verdict; rv.style.color = colors[data.verdict] || '#e2e2e8'; }
-    const rt = document.getElementById('rpTime');
-    if (rt) rt.textContent = data.time_ms ? `${data.time_ms.toFixed(1)}ms` : '';
-    const rp = document.getElementById('rpTests');
-    if (rp) rp.textContent = data.tests_total > 0
-        ? `${data.tests_passed}/${data.tests_total} test cases passed` : '';
-    const rs = document.getElementById('rpStderr');
-    if (rs) {
-        if (data.stderr && ['RE','CE','WA'].includes(data.verdict)) {
-            rs.style.display = 'block';
-            rs.textContent   = data.stderr.substring(0, 2000);
-        } else {
-            rs.style.display = 'none';
+// ══════════════ CHAT ══════════════
+function onChatMessage(data) {
+    const wrap  = document.getElementById('chatMessages');
+    const empty = document.getElementById('chatEmpty');
+    if (empty) empty.remove();
+
+    const isOwn = data.player === CURRENT_USER;
+    const div = document.createElement('div');
+    div.className = `chat-msg ${isOwn ? 'own' : ''}`;
+    div.innerHTML = `
+        <div class="chat-avatar">${data.player.slice(0,1).toUpperCase()}</div>
+        <div class="chat-bubble-wrap">
+            <div class="chat-author">${isOwn ? 'You' : escapeHtml(data.player)}</div>
+            <div class="chat-bubble">${escapeHtml(data.message)}</div>
+        </div>`;
+    wrap.appendChild(div);
+    wrap.scrollTop = wrap.scrollHeight;
+
+    if (!isOwn) {
+        const sideActive = document.getElementById('panelSide').classList.contains('mobile-active');
+        const chatActive = document.querySelector('.side-content[data-scontent="chat"]').classList.contains('active');
+        if (!chatActive || !sideActive) {
+            const chatTab = document.querySelector('.stab[data-stab="chat"]');
+            if (chatTab) chatTab.classList.add('has-unread');
         }
+        if (!chatActive) showToast(`💬 ${data.player}: ${data.message}`, 2500);
     }
-    panel.style.display = 'block';
 }
 
-// ── submit ──
+function addSystemChatMsg(text) {
+    const wrap  = document.getElementById('chatMessages');
+    const empty = document.getElementById('chatEmpty');
+    if (empty) empty.remove();
+    const div = document.createElement('div');
+    div.className = 'chat-msg system';
+    div.style.alignSelf = 'center';
+    div.innerHTML = `<div class="chat-bubble">${escapeHtml(text)}</div>`;
+    wrap.appendChild(div);
+    wrap.scrollTop = wrap.scrollHeight;
+}
+
+function sendChat() {
+    const input = document.getElementById('chatInput');
+    const msg = input.value.trim();
+    if (!msg) return;
+    sendWS('chat', { message: msg });
+    input.value = '';
+}
+
+document.getElementById('chatInput').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') sendChat();
+});
+
+function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+}
+
+// ══════════════ SUBMISSION HISTORY ══════════════
+function addHistoryItem(data) {
+    const list  = document.getElementById('historyList');
+    const empty = document.getElementById('historyEmpty');
+    if (empty) empty.remove();
+
+    const lang = document.getElementById('languageSelect').value;
+    const time = data.time_ms ? `${data.time_ms.toFixed(0)}ms · ` : '';
+
+    const item = document.createElement('div');
+    item.className = 'history-item';
+    item.innerHTML = `
+        <div class="history-left">
+            <span class="history-verdict verdict-${data.verdict}">${data.verdict}</span>
+            <span class="history-lang">${lang}</span>
+        </div>
+        <div class="history-meta">${time}${data.tests_passed}/${data.tests_total}</div>`;
+    list.insertBefore(item, list.firstChild);
+
+    if (!document.querySelector('.side-content[data-scontent="history"]').classList.contains('active')) {
+        const histTab = document.querySelector('.stab[data-stab="history"]');
+        if (histTab) histTab.classList.add('has-unread');
+    }
+}
+
+// ══════════════ RESULTS PANEL ══════════════
+function showResultsPanel(data) {
+    const panel = document.getElementById('resultsPanel');
+    const colors = { AC:'var(--green)', WA:'var(--red)', TLE:'var(--yellow)', RE:'var(--accent-hover)', CE:'var(--blue-hover)' };
+
+    const rv = document.getElementById('rpVerdict');
+    rv.textContent = data.verdict;
+    rv.style.color = colors[data.verdict] || 'var(--text-1)';
+
+    const rt = document.getElementById('rpTime');
+    rt.textContent = data.time_ms ? `${data.time_ms.toFixed(1)}ms` : '';
+
+    const rp = document.getElementById('rpTests');
+    rp.textContent = data.tests_total > 0
+        ? `${data.tests_passed}/${data.tests_total} test cases passed` : '';
+
+    const rs = document.getElementById('rpStderr');
+    if (data.stderr && ['RE','CE','WA'].includes(data.verdict)) {
+        rs.style.display = 'block';
+        rs.textContent   = data.stderr.substring(0, 2000);
+    } else {
+        rs.style.display = 'none';
+    }
+
+    panel.classList.add('show');
+}
+
+// ══════════════ SUBMIT ══════════════
 function submitCode() {
     if (!editor) return;
     const code     = editor.getValue().trim();
@@ -617,7 +1482,7 @@ function submitCode() {
     sendWS('submit_code', { code, language });
 }
 
-// ── copy room link ──
+// ══════════════ COPY ROOM LINK ══════════════
 function copyRoomLink() {
     const el = document.getElementById('roomLink');
     if (!el) return;
@@ -625,7 +1490,7 @@ function copyRoomLink() {
         .then(() => showToast('Link copied!'));
 }
 
-// ── Monaco setup ──
+// ══════════════ MONACO SETUP ══════════════
 require.config({
     paths: { 'vs': 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs' }
 });
@@ -647,13 +1512,11 @@ require(['vs/editor/editor.main'], function () {
         }
     );
 
-    // cursor position in footer
     editor.onDidChangeCursorPosition(e => {
         const el = document.getElementById('cursorPosition');
         if (el) el.textContent = `Line ${e.position.lineNumber}, Col ${e.position.column}`;
     });
 
-    // update my own progress bar + debounced send to opponent
     editor.onDidChangeModelContent(() => {
         const lines = editor.getModel().getLineCount();
         const isA   = CURRENT_USER === PLAYER_A;
@@ -669,7 +1532,6 @@ require(['vs/editor/editor.main'], function () {
         }, 300);
     });
 
-    // language switcher
     document.getElementById('languageSelect').addEventListener('change', e => {
         const lang = e.target.value;
         monaco.editor.setModelLanguage(editor.getModel(), lang);
@@ -677,7 +1539,6 @@ require(['vs/editor/editor.main'], function () {
         editor.focus();
     });
 
-    // Ctrl+Enter to submit
     editor.addAction({
         id:          'submit',
         label:       'Submit Solution',
@@ -685,7 +1546,6 @@ require(['vs/editor/editor.main'], function () {
         run:         submitCode,
     });
 
-    // ── connect WebSocket AFTER editor is ready ──
     connectWS();
 });
 </script>
