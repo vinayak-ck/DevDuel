@@ -14,11 +14,13 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
-# set dummy SECRET_KEY only for collectstatic — Railway real one set via env vars
-ENV SECRET_KEY=dummy-build-secret-not-used-in-production
-ENV DEBUG=False
-ENV ALLOWED_HOSTS=*
+RUN SECRET_KEY=build-only-dummy-key \
+    DEBUG=False \
+    DB_NAME=dummy \
+    DB_USER=dummy \
+    DB_PASSWORD=dummy \
+    python manage.py collectstatic --noinput
 
-RUN python manage.py collectstatic --noinput || true
+EXPOSE 8000
 
-CMD daphne -b 0.0.0.0 -p ${PORT:-8000} devduel.asgi:application
+CMD ["sh", "-c", "python manage.py migrate --noinput && daphne -b 0.0.0.0 -p $PORT devduel.asgi:application"]

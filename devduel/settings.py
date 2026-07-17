@@ -14,9 +14,9 @@ USE_X_FORWARDED_HOST    = True
 SECURE_SSL_REDIRECT     = not DEBUG
 
 CSRF_TRUSTED_ORIGINS = [
-    'https://*.railway.app',
-    'https://devduel-production-cf37.up.railway.app',
+    'https://*.koyeb.app',
     'http://127.0.0.1:8000',
+    'http://localhost:8000',
 ]
 
 INSTALLED_APPS = [
@@ -63,10 +63,17 @@ TEMPLATES = [{
 # ── Database ──
 DATABASE_URL = config('DATABASE_URL', default=None)
 if DATABASE_URL:
-    DATABASES = {'default': dj_database_url.parse(
-        DATABASE_URL, engine='django.db.backends.mysql', conn_max_age=600
-    )}
-    DATABASES['default']['OPTIONS'] = {'charset': 'utf8mb4'}
+    DATABASES = {
+        'default': dj_database_url.parse(
+            DATABASE_URL,
+            engine='django.db.backends.mysql',
+            conn_max_age=600,
+        )
+    }
+    DATABASES['default']['OPTIONS'] = {
+        'charset': 'utf8mb4',
+        'ssl': {'ssl-mode': 'REQUIRED'},   # required for Aiven
+    }
 else:
     DATABASES = {'default': {
         'ENGINE':   'django.db.backends.mysql',
